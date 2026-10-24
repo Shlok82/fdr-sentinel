@@ -1,1 +1,103 @@
+# Dependencies & Package Managers
+node_modules/
+.pnp
+.pnp.js
+
+# Python Artifacts & Environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+env/
+
+# Next.js & Frontend Build Outputs
+.next/
+out/
+
+# Testing & Coverage Artifacts
+coverage/
+.nyc_output/
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Environment Variables & Secrets (Keep .env.example tracked)
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Local Database Files & Docker Volumes
+*.sqlite3
+*.db
+postgres_data/
+pgdata/
+mongo_data/
+
+# Uploads & Document Storage
+uploads/
+storage/
+media/
+documents/
+temp/
+tmp/
+
+# Logs & Runtime State
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+logs/
+
+# IDE & Operating System Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.swp
+*.swo
+*~
+
+# Testing & MCP Cache Directories
 .playwright-mcp/
