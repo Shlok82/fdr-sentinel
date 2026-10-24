@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FDR Sentinel | AICTE Security Deposit Portal{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        aicte: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            500: '#f97316',
+                            600: '#ea580c',
+                            700: '#c2410c',
+                            800: '#9a3412',
+                            900: '#7c2d12',
+                        },
+                        navy: {
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- HTMX CDN -->
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="icon" type="image/png" href="/static/images/logo.png">
+    {% block head %}{% endblock %}
+</head>
+<body class="flex flex-col min-h-full font-sans text-slate-800 antialiased">
+    <!-- Header / Navigation -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="flex items-center space-x-3">
+                        <img src="/static/images/logo+wordmark.png" alt="FDR Sentinel Logo" class="h-10 w-auto object-contain">
+                    </a>
+                    <div class="hidden md:block h-6 w-px bg-slate-300"></div>
+                    <div class="hidden md:flex flex-col">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-aicte-700">AICTE • Regulation Bureau</span>
+                        <span class="text-xs text-slate-500">Security Deposit / FDR Custody Management</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center bg-slate-100 rounded-full px-3 py-1 text-xs text-slate-600 font-mono">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
+                        <span id="header-clock">{{ current_time or 'Clock Active' }}</span>
+                    </div>
+                    {% if demo_mode %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300">
+                        Demo Mode
+                    </span>
+                    {% endif %}
+                    <a href="/docs" target="_blank" class="text-xs text-slate-600 hover:text-aicte-600 font-medium px-2 py-1 border border-slate-300 rounded hover:border-aicte-500 transition">
+                        API Docs
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-6 text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-2">
+            <div>
+                <span class="font-semibold text-slate-700">FDR Sentinel</span> — All India Council for Technical Education (AICTE)
+                <span class="mx-2">•</span> SIH 26265 (Smart Automation)
+            </div>
+            <div class="flex items-center space-x-4">
+                <a href="/healthz" class="hover:text-slate-900 underline font-mono">/healthz</a>
+                <span class="text-slate-300">|</span>
+                <span>Stage 1 of 7: Skeleton, Docker, Database</span>
+            </div>
+        </div>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
