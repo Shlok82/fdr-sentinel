@@ -1,7 +1,6 @@
 import uuid
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.sql import func
 from app.models.base import Base
 
 
@@ -13,4 +12,4 @@ class ScrutinyNote(Base):
     officer_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True)
     note_text = Column(Text, nullable=False)
     action_recommended = Column(String(30), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)

@@ -1,7 +1,6 @@
 import uuid
 from sqlalchemy import Column, String, Numeric, Integer, Date, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.sql import func
 from app.models.base import Base
 
 
@@ -26,5 +25,5 @@ class Instrument(Base):
     renewal_sequence = Column(Integer, default=1, nullable=False)
     trust_score = Column(Integer, default=20, nullable=False)
     trust_score_breakdown = Column(JSONB, default=dict, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)
+    updated_at = Column(DateTime(timezone=True), nullable=False)

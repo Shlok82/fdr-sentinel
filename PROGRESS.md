@@ -6,23 +6,25 @@
 **Project:** FDR Sentinel (SIH Problem Statement 26265)  
 **Execution Context:** Solo Developer (4 Build Days + 1 Submission Day)  
 **Submission Deadline:** 28 October 2026  
-**Current Phase:** Day 1 — Foundation, Core Schema & Tier 1 Regulatory Loop  
+**Current Phase:** Day 1 — Foundation, ClockService & Cryptographic Audit Log (Stage 2 Complete)  
 **Last Updated:** 2026-10-24  
-**Overall Readiness:** 10% (Architecture & Specifications Finalized; Implementation Ready)
+**Overall Readiness:** 25% (Foundation, Database Roles, ClockService, Audit Hash Chain & 45 Tests Passing)
 
 ---
 
 ## 📅 Day-by-Day Implementation Roadmap
 
 ### Day 1: Saturday, 24 Oct 2026 (Tier 1: Core Regulatory Loop & Foundation)
-- [ ] Initialize repository structure and Docker Compose orchestration (FastAPI + PostgreSQL 16+).
-- [ ] Configure Python backend environment (`requirements.txt`, Pydantic v2 settings, Tailwind CLI / CDN setup).
-- [ ] Implement SQLAlchemy 2.0 models: `User` (with `is_demo_admin`), `Institution`, `Instrument`, `Document`, `FieldProvenance`, `AuditLog`.
-- [ ] Configure PostgreSQL database role privileges:
-  - Migrations and seeding run as administrative DB owner (`postgres`).
-  - Runtime app executes strictly under `fdr_app_user` with `UPDATE`, `DELETE`, and `TRUNCATE` revoked on `audit_log`.
-- [ ] Implement injected **`ClockService`** (`IClockService` singleton) as the sole temporal authority across all services and queries.
-- [ ] Implement **Tamper-Detecting SHA-256 Hash-Chained Audit Log** with canonical JSON serialization binding `id`, `event_timestamp`, `entity_type`, `entity_id`, `action`, `actor_user_id`, and `actor_role`.
+- [x] Initialize repository structure and Docker Compose orchestration (FastAPI + PostgreSQL 16+).
+- [x] Configure Python backend environment (`requirements.txt`, Pydantic v2 settings with fail-safe production defaults).
+- [x] Implement SQLAlchemy 2.0 models: `User` (with `is_demo_admin`), `Institution`, `Instrument`, `Document`, `FieldProvenance`, `AuditLog`, `ClockState`.
+- [x] Configure PostgreSQL database role privileges:
+  - Migrations and seeding run as administrative DB owner (`fdr_owner`).
+  - Runtime app executes strictly under `fdr_app_user` with `UPDATE`, `DELETE`, and `TRUNCATE` revoked on `audit_log`, and `GRANT USAGE ON SEQUENCE audit_log_id_seq`.
+  - `clock_state` single-row constraint (`CHECK (id = 1)`) with `SELECT, UPDATE` granted to `fdr_app_user`.
+- [x] Implement injected **`ClockService`** (`ClockService` singleton) as the sole temporal authority across all services and queries (`# clock-allow` static grep enforcement).
+- [x] Implement **Tamper-Detecting SHA-256 Hash-Chained Audit Log** with canonical JSON serialization binding `id`, `event_timestamp`, `entity_type`, `entity_id`, `action`, `actor_user_id`, `actor_role`, and `details`.
+- [x] Implement `verify_chain(session)` verifying genesis anchor, link continuity, payload match, and entry hash in linear time ($O(n)$).
 - [ ] Implement JWT authentication service, password hashing (bcrypt), and FastAPI RBAC dependency interceptor (4 roles).
 - [ ] Build FDR Submission endpoint and Jinja2 + HTMX form with **AES-256-GCM envelope encryption** (per-file DEK wrapped by master KEK).
 - [ ] Implement 11-state finite state machine (FSM) validation and non-destructive discrepancy transitions.
@@ -87,6 +89,9 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 | **DEC-007** | 2026-10-24 | Temporal Logic | Injected `ClockService` as sole source of date/time across app and queries. | Eliminates non-deterministic `CURRENT_DATE`/`NOW()` calls, enabling seamless time machine simulation and catch-up processing. |
 | **DEC-008** | 2026-10-24 | Trust Modeling | Earned Trust Score (Low base + verified evidence additions - rule deductions). | Replaces unjustified high initial trust with a realistic regulatory model where institutions earn credibility through confirmed artifacts. |
 | **DEC-009** | 2026-10-24 | Priority Tiers | 4-tier build schedule with strict "Drop First If Behind" contingency plan. | Guarantees complete end-to-end working MVP with zero risk of half-baked core features at deadline. |
+| **DEC-010** | 2026-10-24 | Audit Chaining Model | Previous-row chaining using highest committed ID instead of rigid `id - 1`. | Prevents spurious chain breaks caused by sequence number gaps resulting from rolled-back database transactions. |
+| **DEC-011** | 2026-10-24 | Tamper-Evident Details | Binds `details` dictionary inside the canonical JSON cryptographic payload. | Extends SPEC 7-field baseline to ensure transition metadata (`from_state`, `to_state`, justifications) cannot be altered without breaking the chain. |
+| **DEC-012** | 2026-10-24 | Fail-Safe Configuration | `APP_ENV` defaults to `"production"`; startup refused on placeholder/malformed keys. | Prevents deploying insecure placeholder keys or unverified environment modes, failing fast with non-leaking error messages. |
 
 ---
 
@@ -120,3 +125,4 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 * **Issue 1:** No live core banking integration (mocked by design due to regulatory/statutory constraints; marked `MOCK_BANK_CONFIRMED`).
 * **Issue 2:** Scan quality degradation on poor physical copies gracefully falls back to manual officer verification.
 * **Issue 3:** Time Machine clock shifting is strictly isolated to `DEMO_MODE=true` with `is_demo_admin=true` and is disabled in production.
+* **Issue 4 (Tail-Truncation Limitation):** In a hash-chain log, deleting trailing rows leaves a mathematically valid shorter chain. Periodic signed head-hash checkpoints (SPEC §9.4) will be added in Tier 3/4 to detect any history truncation.

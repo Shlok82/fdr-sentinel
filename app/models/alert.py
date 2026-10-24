@@ -1,7 +1,6 @@
 import uuid
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.sql import func
 from app.models.base import Base
 
 
@@ -14,7 +13,7 @@ class Alert(Base):
     alert_type = Column(String(50), nullable=False)
     channel = Column(String(30), nullable=False)
     recipient_email = Column(String(150), nullable=False)
-    sent_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    sent_at = Column(DateTime(timezone=True), nullable=False)
     acknowledged_at = Column(DateTime(timezone=True), nullable=True)
     escalation_level_reached = Column(Integer, default=1, nullable=False)
 

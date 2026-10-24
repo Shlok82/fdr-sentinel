@@ -23,8 +23,9 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 target_metadata = Base.metadata
 
-# Set sqlalchemy.url from our settings (using owner credentials)
-config.set_main_option("sqlalchemy.url", settings.DATABASE_OWNER_URL)
+# Set sqlalchemy.url from our settings if not already provided
+if not config.get_main_option("sqlalchemy.url"):
+    config.set_main_option("sqlalchemy.url", settings.DATABASE_OWNER_URL)
 
 
 def run_migrations_offline() -> None:
@@ -44,7 +45,8 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode using the owner database connection."""
     configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = settings.DATABASE_OWNER_URL
+    target_url = config.get_main_option("sqlalchemy.url") or settings.DATABASE_OWNER_URL
+    configuration["sqlalchemy.url"] = target_url
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",

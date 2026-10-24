@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: fdr_owner
       POSTGRES_PASSWORD: fdr_owner_dev_password
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
@@ -27,6 +27,7 @@ services:
     ports:
       - "8000:8000"
     environment:
+      APP_ENV: development
       ENVIRONMENT: development
       DEBUG: "true"
       DEMO_MODE: "true"
@@ -39,6 +40,8 @@ services:
       POSTGRES_PASSWORD: fdr_owner_dev_password
       DATABASE_OWNER_URL: postgresql+psycopg://fdr_owner:fdr_owner_dev_password@db:5432/fdr_sentinel
       DATABASE_URL: postgresql+psycopg://fdr_app_user:fdr_app_dev_password@db:5432/fdr_sentinel
+      TEST_OWNER_DATABASE_URL: postgresql+psycopg://fdr_owner:fdr_owner_dev_password@db:5432/fdr_sentinel_test
+      TEST_DATABASE_URL: postgresql+psycopg://fdr_app_user:fdr_app_dev_password@db:5432/fdr_sentinel_test
       SECRET_KEY: dev_secret_key_change_in_production_min_32_chars_long
       DOCUMENT_MASTER_KEY: k8T0a7Z3Yx9L1q4W7e2R5t8Y1u4I7o0P3s6D9f2G5h8=
       UPLOAD_STORAGE_PATH: /app/storage

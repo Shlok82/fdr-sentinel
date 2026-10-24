@@ -1,6 +1,5 @@
 from sqlalchemy import Column, BigInteger, String, DateTime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.sql import func
 from app.models.base import Base
 
 
@@ -8,7 +7,7 @@ class AuditLog(Base):
     __tablename__ = "audit_log"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    event_timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    event_timestamp = Column(DateTime(timezone=True), nullable=False)
     entity_type = Column(String(50), nullable=False, index=True)
     entity_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     action = Column(String(50), nullable=False, index=True)

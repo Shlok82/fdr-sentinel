@@ -1,7 +1,6 @@
 import uuid
 from sqlalchemy import Column, String, BigInteger, Text, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.sql import func
 from app.models.base import Base
 
 
@@ -20,4 +19,4 @@ class Document(Base):
     encryption_iv = Column(String(32), nullable=False)
     encryption_tag = Column(String(32), nullable=False)
     extracted_payload = Column(JSONB, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)
