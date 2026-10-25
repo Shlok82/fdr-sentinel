@@ -8,6 +8,7 @@ import pypdf
 
 from app.core.config import settings
 from app.models.instrument import Instrument
+from app.models.provenance import FieldProvenance
 from app.models.user import User
 from app.services.clock_service import clock_service
 from app.services.demo_scenarios import compute_quarterly_compound_maturity, get_scenario_data
@@ -289,3 +290,97 @@ def test_form_initial_upload_ux_state(
 
     # Standalone fdr_form.js script is loaded
     assert '<script src="/static/js/fdr_form.js" defer></script>' in html
+
+
+def test_joint_holder_built_from_user_institution_name(
+    client: TestClient, make_user, sample_institution, auth_client_for, monkeypatch
+):
+    """Joint holder clause is dynamically built from the user's institution name without (example)."""
+    monkeypatch.setattr(settings, "DEMO_MODE", True)
+    inst_user = make_user("inst.jointcheck", "INSTITUTION_ADMIN", institution_id=sample_institution.id)
+    auth_client_for(inst_user)
+
+    res = client.get("/demo/fdr-scenarios/clean")
+    assert res.status_code == 200
+    fields = res.json()["fields"]
+
+    expected_clause = f"Regional Officer, AICTE & Head of Institution, {sample_institution.name}"
+    assert fields["joint_account_holder"] == expected_clause
+    assert "(example)" not in fields["joint_account_holder"]
+
+    # Verify PDF generation also contains the institution name and no (example)
+    pdf_res = client.get("/demo/fdr-sample/clean.pdf")
+    assert pdf_res.status_code == 200
+    reader = pypdf.PdfReader(io.BytesIO(pdf_res.content))
+    extracted_text = "".join(page.extract_text() or "" for page in reader.pages)
+    assert sample_institution.name in extracted_text
+    assert "(example)" not in extracted_text
+
+
+def test_detail_pages_provenance_confidence_rendering(
+    client: TestClient, make_user, sample_institution, auth_client_for, app_session: Session
+):
+    """On both detail pages, confidence score figure is shown only for non-SELF_DECLARED provenance types."""
+    import uuid
+    inst_user = make_user("inst.provrender", "INSTITUTION_ADMIN", institution_id=sample_institution.id)
+    scrutiny_user = make_user("staff.provrender", "SCRUTINY_OFFICER")
+
+    now_ts = clock_service.now()
+    inst = Instrument(
+        id=uuid.uuid4(),
+        institution_id=sample_institution.id,
+        fdr_number="PROV-TEST-999",
+        bank_name="Test Prov Bank",
+        principal_amount=Decimal("2500000.00"),
+        status="SUBMITTED",
+        created_at=now_ts,
+        updated_at=now_ts,
+    )
+    app_session.add(inst)
+    app_session.flush()
+
+    # Field 1: SELF_DECLARED with confidence_score 1.000
+    prov_self = FieldProvenance(
+        id=uuid.uuid4(),
+        instrument_id=inst.id,
+        field_name="fdr_number",
+        submitted_value="PROV-TEST-999",
+        current_value="PROV-TEST-999",
+        provenance_type="SELF_DECLARED",
+        confidence_score=Decimal("1.000"),
+    )
+    # Field 2: OCR_EXTRACTED with confidence_score 0.950
+    prov_ocr = FieldProvenance(
+        id=uuid.uuid4(),
+        instrument_id=inst.id,
+        field_name="bank_name",
+        submitted_value="Test Prov Bank",
+        current_value="Test Prov Bank",
+        provenance_type="OCR_EXTRACTED",
+        confidence_score=Decimal("0.950"),
+    )
+    app_session.add(prov_self)
+    app_session.add(prov_ocr)
+    app_session.commit()
+
+    # 1. Institution detail page
+    client, _ = auth_client_for(inst_user)
+    res_inst = client.get(f"/institution/instruments/{inst.id}")
+    assert res_inst.status_code == 200
+    html_inst = res_inst.text
+    # SELF_DECLARED shows label ONLY without confidence parenthesis
+    assert "SELF_DECLARED" in html_inst
+    assert "SELF_DECLARED (1.000)" not in html_inst
+    assert "SELF_DECLARED (" not in html_inst
+    # OCR_EXTRACTED shows confidence score
+    assert "OCR_EXTRACTED (0.950)" in html_inst
+
+    # 2. Staff detail page
+    client, _ = auth_client_for(scrutiny_user)
+    res_staff = client.get(f"/instruments/{inst.id}")
+    assert res_staff.status_code == 200
+    html_staff = res_staff.text
+    assert "SELF_DECLARED" in html_staff
+    assert "SELF_DECLARED (1.000)" not in html_staff
+    assert "SELF_DECLARED (" not in html_staff
+    assert "OCR_EXTRACTED (0.950)" in html_staff

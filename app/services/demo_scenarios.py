@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 from app.services.clock_service import clock_service
 from app.models.instrument import Instrument
+from app.models.institution import Institution
 
 
 def compute_quarterly_compound_maturity(
@@ -63,11 +64,16 @@ SCENARIO_METADATA = {
 }
 
 
-def get_scenario_data(key: str, db: Optional[Session] = None) -> Optional[Dict[str, Any]]:
+def get_scenario_data(
+    key: str,
+    db: Optional[Session] = None,
+    institution_name: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
     """Single source of truth for prototype evaluation scenarios.
     
     All dates derive purely from ClockService.today(), never hardware clocks.
     All data is purely fictional (Demo National Bank, DEMO0123456).
+    Joint account holder is dynamically constructed using the caller's actual institution name.
     """
     if key not in SCENARIO_METADATA:
         return None
@@ -78,7 +84,16 @@ def get_scenario_data(key: str, db: Optional[Session] = None) -> Optional[Dict[s
     base_fictional_bank = "Demo National Bank"
     base_fictional_branch = "Model Town Branch, New Delhi"
     base_fictional_ifsc = "DEMO0123456"
-    base_joint_holder = "Regional Officer, AICTE & Principal, Demo Institute of Technology (example)"
+
+    if institution_name and institution_name.strip():
+        inst_title = institution_name.strip()
+    elif db:
+        first_inst = db.query(Institution).first()
+        inst_title = first_inst.name if first_inst else "National Model Institute of Technology"
+    else:
+        inst_title = "National Model Institute of Technology"
+
+    base_joint_holder = f"Regional Officer, AICTE & Head of Institution, {inst_title}"
 
     principal_std = Decimal("3500000.00")
     rate_std = Decimal("7.50")

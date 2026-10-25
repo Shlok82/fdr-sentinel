@@ -150,7 +150,7 @@
                 <div class="sm:w-1/3 flex justify-start sm:justify-end">
                     {% if prov_map[fname] %}
                     <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 font-mono">
-                        {{ prov_map[fname].provenance_type }} ({{ prov_map[fname].confidence_score }})
+                        {{ prov_map[fname].provenance_type }}{% if prov_map[fname].provenance_type != "SELF_DECLARED" and prov_map[fname].confidence_score is not none %} ({{ prov_map[fname].confidence_score }}){% endif %}
                     </span>
                     {% else %}
                     <span class="text-[10px] text-slate-400 italic">No provenance record</span>

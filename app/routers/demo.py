@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_roles, verify_csrf
 from app.models.user import User
+from app.models.institution import Institution
 from app.services.clock_service import clock_service
 from app.services.demo_scenarios import get_scenario_data
 from app.services.demo_documents import generate_demo_fdr_pdf
@@ -103,7 +104,9 @@ def get_demo_scenario(
             detail="Demo scenario endpoints are disabled when DEMO_MODE is false."
         )
 
-    scenario_data = get_scenario_data(key, db)
+    institution = db.query(Institution).filter(Institution.id == user.institution_id).first() if user.institution_id else None
+    inst_name = institution.name if institution else None
+    scenario_data = get_scenario_data(key, db, institution_name=inst_name)
     if not scenario_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -126,7 +129,9 @@ def get_demo_sample_pdf(
             detail="Demo scenario endpoints are disabled when DEMO_MODE is false."
         )
 
-    scenario_data = get_scenario_data(key, db)
+    institution = db.query(Institution).filter(Institution.id == user.institution_id).first() if user.institution_id else None
+    inst_name = institution.name if institution else None
+    scenario_data = get_scenario_data(key, db, institution_name=inst_name)
     if not scenario_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
