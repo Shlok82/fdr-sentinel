@@ -6,10 +6,10 @@
 **Project:** FDR Sentinel (SIH Problem Statement 26265)  
 **Execution Context:** Solo Developer (4 Build Days + 1 Submission Day)  
 **Submission Deadline:** 28 October 2026  
-**Current Phase:** Day 2 — Template Formatting Hardening, Global 500 Handler & Null-Safety (Stage 4.3 Bugfix Complete)  
-**Last Updated:** 2026-10-26 (README refreshed)  
-**Overall Readiness:** 50% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel, Nullable Migration 0002, AES-256-GCM Envelope Encryption with AAD Document ID Binding, Sharded Storage Vault, Atomic Multi-Table Submission Service, Field Provenance, Scoped Views & Downloads, Submission Form Demo Tools & Scenarios, fpdf2 Specimen PDF Generator, Shared Null-Safe Filters, Global Exception Catch-All 500 Handler, 11-State Finite State Machine, Database CHECK Constraint ck_instruments_status_fsm, Prior-State Restoration Column, Actor Principal Model, Read-Only Audit Timeline UI, 135 Tests Passing)  
-> **Schedule status:** Tier 1 Stage 5 complete; Stages 6-7 in progress.
+**Current Phase:** Day 3 — DiscrepancyEngine & Regulatory Rules (Stage 6 Complete)  
+**Last Updated:** 2026-10-26 (Stage 6 DiscrepancyEngine Complete)  
+**Overall Readiness:** 60% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel, Nullable Migration 0002, AES-256-GCM Envelope Encryption with AAD Document ID Binding, Sharded Storage Vault, Atomic Multi-Table Submission Service, Field Provenance, Scoped Views & Downloads, Submission Form Demo Tools & Scenarios, fpdf2 Specimen PDF Generator, Shared Null-Safe Filters, Global Exception Catch-All 500 Handler, 11-State Finite State Machine, Database CHECK Constraint ck_instruments_status_fsm, Prior-State Restoration Column, Actor Principal Model, Read-Only Audit Timeline UI, DiscrepancyEngine & discrepancy_tickets Migration 0004, Pure Rules DISC-01 to DISC-06 and DISC-08, FSM Blocking Flag Orchestration, Scoped UI Cards, 171 Tests Passing)  
+> **Schedule status:** Tier 1 Stage 6 complete; Stage 7 in progress.
 
 ---
 
@@ -24,8 +24,8 @@
 | **Stage 4** | Encrypted Document Vault & FDR Submission | Done | AES-256-GCM envelope encryption, multi-table atomic service |
 | **Stage 4.3** | Null-Safety Hotfix & Global 500 Exception Boundary | Done | Shared template filters, styled 500 handler, 124 tests passing |
 | **Stage 5** | FSM & Status Lifecycle Timeline | Done | 11-state machine, prior-state restore, status CHECK constraint, timeline UI |
-| **Stage 6** | DiscrepancyEngine & Trust Score Inputs | Next | DISC-01 to DISC-06, DISC-08, newer-submission flagging for DISC-05 |
-| **Stage 7** | Scrutiny Workstation Console | Planned | Side-by-side diff review (confirm exact scope with me) |
+| **Stage 6** | DiscrepancyEngine & Trust Score Inputs | Done | DISC-01 to DISC-06, DISC-08, discrepancy_tickets table, FSM orchestration, audit trail |
+| **Stage 7** | Scrutiny Workstation Console | Next | Side-by-side diff review (confirm exact scope with me) |
 
 ---
 
@@ -47,7 +47,7 @@
 - [x] Implement JWT authentication service, password hashing (bcrypt), and FastAPI RBAC dependency interceptor (4 roles).
 - [x] Build FDR Submission endpoint and Jinja2 + HTMX form with **AES-256-GCM envelope encryption** (per-file DEK wrapped by master KEK).
 - [x] Implement 11-state finite state machine (FSM) validation and non-destructive discrepancy transitions.
-- [ ] Implement deterministic **`DiscrepancyEngine`** (`DISC-01` to `DISC-06`, `DISC-08`), saving records as `DISCREPANCY_FLAGGED` (with `DISC-05` flagging only newer submissions).
+- [x] Implement deterministic **`DiscrepancyEngine`** (`DISC-01` to `DISC-06`, `DISC-08`), saving records as `DISCREPANCY_FLAGGED` (with `DISC-05` flagging only newer submissions).
 - [ ] Build Scrutiny Officer workstation console (Jinja2 + HTMX) with status filters and discrepancy review actions.
 
 ### Day 2: Sunday, 25 Oct 2026 (Tier 2: Temporal Engine, Dashboard & Notices)
@@ -135,6 +135,11 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 | **DEC-031** | 2026-10-26 | Database Engine FSM Status CHECK Constraint | Enforced `ck_instruments_status_fsm` on `instruments.status` via Migration `0003_instrument_lifecycle_fsm.py` with pre-migration loud validation failure. | Guarantees database integrity at the PostgreSQL storage engine level, preventing any illegal or misspelled state string from persisting. |
 | **DEC-032** | 2026-10-26 | Mandatory Human Justification Boundary | Enforces mandatory, non-blank text justification ($\ge 10$ characters) for human-driven sensitive transitions (`VERIFIED`, `REJECTED`, `RELEASED`, `RELEASE_REQUESTED`, and release-rejection); automated transitions generate descriptive system reasons. | Complies with AICTE regulatory accountability and human-in-the-loop statutory governance mandates. |
 | **DEC-033** | 2026-10-26 | Dynamic Contextual Joint-Holder & Simplified Provenance Display | Built joint-holder clause dynamically from caller's linked institution (`"Regional Officer, AICTE & Head of Institution, <institution name>"`) omitting `(example)` from saved values. Simplified provenance badges on detail pages to display label only for `SELF_DECLARED` rows, reserving confidence score figures for extracted/verified sources. | Enhances demo realism across multi-institution evaluations and cleans visual hierarchy for institution self-declarations. |
+| **DEC-034** | 2026-10-26 | Discrepancy Tickets Schema & Deduplication | Migration `0004_discrepancy_tickets.py` creates `discrepancy_tickets` table with composite partial unique index `(instrument_id, rule_code) WHERE status = 'OPEN'`. Runtime role `fdr_app_user` granted `SELECT, INSERT, UPDATE` (`DELETE, TRUNCATE` revoked). | Prevents duplicate open tickets for the same finding across multiple engine runs, maintains ticket audit history upon resolution, and preserves database-level privilege isolation. |
+| **DEC-035** | 2026-10-26 | Blocking vs Advisory FSM Orchestration | Clean runs or advisory-only findings leave the instrument in `SUBMITTED`. Any blocking ticket triggers two consecutive atomic `instrument_fsm.transition()` steps: `SUBMITTED -> UNDER_SCRUTINY -> DISCREPANCY_FLAGGED` under `SYSTEM_ACTOR`. If re-run finds no blocking tickets, transitions `DISCREPANCY_FLAGGED -> UNDER_SCRUTINY`. | Respects the FSM transitions matrix without adding direct edges, guarantees zero unscrutinized status leaps, and prevents instruments from remaining stranded in intermediate states. |
+| **DEC-036** | 2026-10-26 | Older-Wins Duplicate Rule (`DISC-05`) & Privacy-Preserving Boundary | `DISC-05` flags strictly the newer submission (`created_at > incumbent.created_at`) from a different `aicte_permanent_id`. The incumbent instrument is never modified, locked, or ticketed. The institution-facing message is strictly generic ("This FDR number conflicts with an existing record and is under review") without disclosing the competing institution's identity or instrument ID, while staff detail surfaces conflicting IDs and dispatches a Tier-2 vigilance alert row (`VIGILANCE_DUPLICATE_FDR`). | Eliminates denial-of-service attack vectors against verified legitimate deposits and complies with inter-institution privacy boundaries. |
+| **DEC-037** | 2026-10-26 | Regulatory Slabs Assumption Table (`DISC-03`) | Deposit slabs configured explicitly for Engineering & Technology (₹35,00,000) and Management (₹15,00,000) per SPEC. All other institution types or missing types return `NOT_EVALUATED("no slab configured for institution type")`. Staff detail displays human-readable shortfall in INR (`format_inr`). | Prevents false-positive underfunding flags for unconfigured academic programs pending full APH handbook tables. |
+| **DEC-038** | 2026-10-26 | Advisory In-Memory PDF Metadata Audit (`DISC-08`) | Reads document ciphertext from vault, decrypts in-memory, parses PDF trailer dictionary via `pypdf`, and tests `/Producer` and `/Creator` against non-bank design/canvas/word processor signatures. Marked `LOW` severity and advisory (non-blocking). | Detects synthetic or desktop-generated deposit receipts without blocking manual scrutiny or writing plaintext files to disk. |
 
 ---
 
@@ -151,7 +156,7 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 - [x] All 4 user roles seeded and functional (`institution`, `scrutiny`, `approver`, `auditor`).
 - [x] `is_demo_admin` account created and gated by `DEMO_MODE=true`.
 - [ ] Executive Dashboard renders live Maturity Wall (Chart.js) and Deposit at Risk counters from seed dataset.
-- [ ] Discrepancy Engine saves defective test upload as `DISCREPANCY_FLAGGED` without touching incumbent deposit.
+- [x] Discrepancy Engine saves defective test upload as `DISCREPANCY_FLAGGED` without touching incumbent deposit.
 - [ ] Side-by-side text extraction diff renders clearly on Scrutiny Officer console.
 - [ ] Demo Time Machine button (+60 Days) successfully shifts `ClockService` and fires single-process scheduler with catch-up alerts.
 - [ ] Bilingual (English/Hindi) notice preview modal displays correctly.
@@ -174,8 +179,9 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 * **Issue 7 (Bearer API Auth Deferred):** Bearer token header authentication for headless REST clients is deferred to Tier 4; Stage 3 prioritizes browser session cookie auth.
 * **Issue 8 (UTC vs IST Date Boundary):** `ClockService.today()` calculates calendar date in UTC; in India Standard Time (+05:30) near midnight UTC date may differ by 1 day. All database timestamps remain UTC.
 * **Issue 9 (Master Key Rotation Deferred):** Single versioned master key is used for envelope encryption; multi-version master key rotation is deferred to production hardening.
-* **Issue 10 (Discrepancy Engine & Scoring Pending Stage 6):** Newly submitted instruments initialize with status `SUBMITTED` and baseline trust score `20`; automated discrepancy rule flags (`DISC-01` to `DISC-06`, `DISC-08`) and earned trust calculations arrive in Stage 6.
+* **Issue 10 (Resolved - Stage 6):** DiscrepancyEngine built and verified across pure rules `DISC-01` through `DISC-06`, `DISC-08`, with database-backed tickets and atomic FSM orchestration. `DISC-07` (text extraction diff) is deferred to Tier 4 when the full OCR and digital text extraction pipeline arrives, returning `NOT_EVALUATED`.
 * **Issue 11 (Resolved - Stage 5):** Release-rejection workflow restores the instrument to its exact prior pre-release state (`ACTIVE`, `EXPIRING`, or `MATURED`) via dedicated `prior_state` column and clears it upon exit.
-* **Issue 12 (Baseline Trust Score):** Trust score currently initializes to a constant baseline of `20`; the explainable earned Trust Score calculator (base + evidence additions - discrepancy deductions) is pending Stage 6.
+* **Issue 12 (Baseline Trust Score):** Trust score currently initializes to a constant baseline of `20`; the explainable earned Trust Score calculator (base + evidence additions - discrepancy deductions) is planned for Tier 2.
 * **Issue 13 (Nullable Business Fields):** All instrument business columns are nullable in the database (Migration `0002_nullable_instrument_fields.py`); all current and new code must safely handle `None` values without crashing.
 * **Issue 14 (Demo Tools Gating):** Prototype demo scenario tools and sample PDF generators must remain strictly gated by `DEMO_MODE=true` and non-production environments (`APP_ENV != "production"`).
+* **Issue 15 (Rectification & Resubmission Flow Deferred):** Instrument editing and resubmission flows for flagged discrepancies are deferred beyond Stage 6; instruments remain flagged for manual scrutiny resolution.

@@ -129,7 +129,7 @@ def test_submission_defective_data_saved(client: TestClient, make_user, sample_i
     id1 = uuid.UUID(res1.headers["Location"].split("/")[-1])
     inst1 = app_session.query(Instrument).filter_by(id=id1).first()
     assert inst1 is not None
-    assert inst1.status == "SUBMITTED"
+    assert inst1.status == "DISCREPANCY_FLAGGED"
     assert inst1.ifsc_code is None
     assert inst1.bank_branch is None
 
@@ -156,7 +156,7 @@ def test_submission_defective_data_saved(client: TestClient, make_user, sample_i
     id2 = uuid.UUID(res2.headers["Location"].split("/")[-1])
     assert id2 != id1
     inst2 = app_session.query(Instrument).filter_by(id=id2).first()
-    assert inst2.status == "SUBMITTED"
+    assert inst2.status == "DISCREPANCY_FLAGGED"
 
     # 3. Duplicate FDR number across two different colleges -> BOTH saved
     user_b = make_user("inst.defect.b", "INSTITUTION_ADMIN", institution_id=sample_institution_b.id)
@@ -177,7 +177,7 @@ def test_submission_defective_data_saved(client: TestClient, make_user, sample_i
     id3 = uuid.UUID(res3.headers["Location"].split("/")[-1])
     inst3 = app_session.query(Instrument).filter_by(id=id3).first()
     assert inst3.institution_id == sample_institution_b.id
-    assert inst3.status == "SUBMITTED"
+    assert inst3.status == "DISCREPANCY_FLAGGED"
 
 
 def test_submission_structural_garbage_rejected(client: TestClient, make_user, sample_institution, auth_client_for, app_session: Session):

@@ -13,6 +13,8 @@ from app.models.institution import Institution
 from app.models.instrument import Instrument
 from app.models.document import Document
 from app.models.provenance import FieldProvenance
+from app.models.discrepancy import DiscrepancyTicket
+from app.models.audit import AuditLog
 from app.schemas.instrument import FDRSubmissionForm
 from app.services.submission_service import FDRSubmissionService
 from app.services.document_service import DocumentService, validate_file_content
@@ -227,6 +229,12 @@ def view_institution_instrument_detail(
     # Map provenance by field_name for easy template lookups
     prov_map = {p.field_name: p for p in provenance_rows}
     timeline = get_instrument_timeline(db, instrument)
+    tickets = (
+        db.query(DiscrepancyTicket)
+        .filter(DiscrepancyTicket.instrument_id == instrument.id)
+        .order_by(DiscrepancyTicket.created_at.desc())
+        .all()
+    )
 
     context = {
         "request": request,
@@ -236,6 +244,7 @@ def view_institution_instrument_detail(
         "prov_map": prov_map,
         "documents": documents,
         "timeline": timeline,
+        "tickets": tickets,
         "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
@@ -337,6 +346,26 @@ def view_staff_instrument_detail(
     documents = db.query(Document).filter(Document.instrument_id == instrument.id).all()
     prov_map = {p.field_name: p for p in provenance_rows}
     timeline = get_instrument_timeline(db, instrument)
+    tickets = (
+        db.query(DiscrepancyTicket)
+        .filter(DiscrepancyTicket.instrument_id == instrument.id)
+        .order_by(DiscrepancyTicket.created_at.desc())
+        .all()
+    )
+
+    latest_check_run = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.entity_type == "INSTRUMENT",
+            AuditLog.entity_id == instrument.id,
+            AuditLog.action == "DISCREPANCY_CHECK_RUN",
+        )
+        .order_by(AuditLog.id.desc())
+        .first()
+    )
+    not_evaluated = {}
+    if latest_check_run and latest_check_run.canonical_payload:
+        not_evaluated = latest_check_run.canonical_payload.get("details", {}).get("not_evaluated", {})
 
     context = {
         "request": request,
@@ -346,6 +375,8 @@ def view_staff_instrument_detail(
         "prov_map": prov_map,
         "documents": documents,
         "timeline": timeline,
+        "tickets": tickets,
+        "not_evaluated": not_evaluated,
         "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,

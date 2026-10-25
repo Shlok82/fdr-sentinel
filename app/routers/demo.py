@@ -106,7 +106,12 @@ def get_demo_scenario(
 
     institution = db.query(Institution).filter(Institution.id == user.institution_id).first() if user.institution_id else None
     inst_name = institution.name if institution else None
-    scenario_data = get_scenario_data(key, db, institution_name=inst_name)
+    scenario_data = get_scenario_data(
+        key,
+        db,
+        institution_name=inst_name,
+        caller_institution_id=user.institution_id,
+    )
     if not scenario_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -131,7 +136,12 @@ def get_demo_sample_pdf(
 
     institution = db.query(Institution).filter(Institution.id == user.institution_id).first() if user.institution_id else None
     inst_name = institution.name if institution else None
-    scenario_data = get_scenario_data(key, db, institution_name=inst_name)
+    scenario_data = get_scenario_data(
+        key,
+        db,
+        institution_name=inst_name,
+        caller_institution_id=user.institution_id,
+    )
     if not scenario_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

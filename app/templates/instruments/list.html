@@ -79,9 +79,14 @@
                                 ACTIVE
                             </span>
                             {% elif inst.status == "DISCREPANCY_FLAGGED" %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                                DISCREPANCY FLAGGED
-                            </span>
+                            <div class="flex flex-col gap-1 items-start">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                    DISCREPANCY FLAGGED
+                                </span>
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-100 text-amber-800">
+                                    Needs attention
+                                </span>
+                            </div>
                             {% else %}
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                                 {{ inst.status }}

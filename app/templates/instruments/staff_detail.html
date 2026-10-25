@@ -208,6 +208,97 @@
         </div>
     </div>
 
+    <!-- Discrepancy Tickets & Diagnostic Detail -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
+            <div>
+                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Discrepancy Tickets & Regulatory Checks</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Automated discrepancy evaluation and staff diagnostics</p>
+            </div>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-medium {% if tickets %}bg-rose-50 text-rose-700 border border-rose-200{% else %}bg-emerald-50 text-emerald-700 border border-emerald-200{% endif %}">
+                {{ tickets | length }} ticket{% if tickets | length != 1 %}s{% endif %}
+            </span>
+        </div>
+
+        <div class="divide-y divide-slate-100 text-xs">
+            {% for ticket in tickets %}
+            <div class="px-6 py-4 flex flex-col gap-2">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono text-xs font-bold px-2 py-0.5 rounded border
+                            {% if ticket.severity == 'CRITICAL' %}bg-rose-50 text-rose-700 border-rose-200
+                            {% elif ticket.severity == 'HIGH' %}bg-orange-50 text-orange-700 border-orange-200
+                            {% elif ticket.severity == 'MEDIUM' %}bg-amber-50 text-amber-700 border-amber-200
+                            {% else %}bg-blue-50 text-blue-700 border-blue-200{% endif %}">
+                            {{ ticket.severity }}
+                        </span>
+                        <span class="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                            {{ ticket.rule_code }}
+                        </span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold
+                            {% if ticket.status == 'OPEN' %}bg-rose-100 text-rose-800
+                            {% else %}bg-emerald-100 text-emerald-800{% endif %}">
+                            {{ ticket.status }}
+                        </span>
+                        {% if ticket.blocking %}
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-50 text-red-600 border border-red-200">
+                            Blocking
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-50 text-slate-600 border border-slate-200">
+                            Advisory
+                        </span>
+                        {% endif %}
+                    </div>
+                    <span class="text-[11px] font-mono text-slate-400">
+                        Created: {{ ticket.created_at | format_datetime }}
+                    </span>
+                </div>
+                <div class="text-xs text-slate-700 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-200/60">
+                    {{ ticket.message }}
+                </div>
+
+                {% if ticket.staff_detail %}
+                <div class="mt-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                    <div class="font-semibold text-slate-700 text-[11px] mb-1">Staff Diagnostic Detail:</div>
+                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+                        {% for k, v in ticket.staff_detail.items() %}
+                        <div>
+                            <dt class="font-mono text-slate-500 inline">{{ k }}:</dt>
+                            <dd class="font-mono text-slate-800 inline font-medium ml-1">
+                                {% if k == 'deficit' and v %}
+                                    {{ v | format_inr }}
+                                {% elif k == 'required_slab' and v %}
+                                    {{ v | format_inr }}
+                                {% else %}
+                                    {{ v }}
+                                {% endif %}
+                            </dd>
+                        </div>
+                        {% endfor %}
+                    </dl>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="p-6 text-center text-xs text-slate-400">
+                No discrepancy tickets recorded for this instrument. All checks clear.
+            </div>
+            {% endfor %}
+
+            {% if not_evaluated %}
+            <div class="p-4 bg-slate-50/70 border-t border-slate-200 text-xs text-slate-600">
+                <span class="font-semibold text-slate-700 text-[11px] block mb-1">Rules Not Evaluated in Latest Run:</span>
+                <ul class="list-disc list-inside space-y-0.5 text-[11px] text-slate-600">
+                    {% for rule, reason in not_evaluated.items() %}
+                    <li><span class="font-mono font-semibold">{{ rule }}</span>: {{ reason }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
     <!-- Lifecycle History & Audit Timeline -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">

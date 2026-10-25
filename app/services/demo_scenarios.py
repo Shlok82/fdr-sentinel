@@ -39,7 +39,7 @@ SCENARIO_METADATA = {
     },
     "inverted_dates": {
         "title": "Inverted Dates",
-        "description": "Maturity date is earlier than issue date (violates temporal consistency check DISC-02).",
+        "description": "Maturity date is earlier than issue date (violates temporal consistency checks DISC-02 and DISC-04).",
     },
     "duplicate_number": {
         "title": "Duplicate FDR Number",
@@ -47,11 +47,11 @@ SCENARIO_METADATA = {
     },
     "expired": {
         "title": "Expired FDR",
-        "description": "Maturity date is already in the past (triggers expired instrument check DISC-03).",
+        "description": "Maturity date is already in the past (triggers expired instrument check DISC-04).",
     },
     "low_principal": {
         "title": "Low Principal (Underfunded)",
-        "description": "Deposit amount is far below regulatory requirement (triggers underfunding check DISC-04).",
+        "description": "Deposit amount is far below regulatory requirement (triggers underfunding check DISC-03).",
     },
     "missing_mandatory": {
         "title": "Missing Mandatory Fields",
@@ -68,6 +68,7 @@ def get_scenario_data(
     key: str,
     db: Optional[Session] = None,
     institution_name: Optional[str] = None,
+    caller_institution_id: Optional[Any] = None,
 ) -> Optional[Dict[str, Any]]:
     """Single source of truth for prototype evaluation scenarios.
     
@@ -143,10 +144,11 @@ def get_scenario_data(
         target_fdr = None
         target_bank = base_fictional_bank
         if db is not None:
+            query = db.query(Instrument).filter(Instrument.fdr_number.isnot(None))
+            if caller_institution_id is not None:
+                query = query.filter(Instrument.institution_id != caller_institution_id)
             latest = (
-                db.query(Instrument)
-                .filter(Instrument.fdr_number.isnot(None))
-                .order_by(Instrument.created_at.desc())
+                query.order_by(Instrument.created_at.desc(), Instrument.id.desc())
                 .first()
             )
             if latest and latest.fdr_number:
@@ -156,7 +158,7 @@ def get_scenario_data(
 
         if not target_fdr:
             target_fdr = "DEMO-FDR-2026-001"
-            data["note"] = "Submit a clean FDR first"
+            data["note"] = "Submit a clean FDR first from another institution"
         else:
             data["note"] = f"Targets existing deposit {target_fdr}"
 

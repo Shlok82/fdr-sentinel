@@ -10,6 +10,7 @@ from app.models.release import ReleaseRequest
 from app.models.alert import Alert
 from app.models.audit import AuditLog
 from app.models.clock import ClockState
+from app.models.discrepancy import DiscrepancyTicket
 
 __all__ = [
     "Base",
@@ -24,4 +25,5 @@ __all__ = [
     "Alert",
     "AuditLog",
     "ClockState",
+    "DiscrepancyTicket",
 ]

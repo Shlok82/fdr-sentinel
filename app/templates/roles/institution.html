@@ -82,13 +82,23 @@
                             {{ inst.maturity_date | format_date }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
+                            {% if inst.status == 'DISCREPANCY_FLAGGED' %}
+                            <div class="flex flex-col gap-1 items-start">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-800">
+                                    DISCREPANCY FLAGGED
+                                </span>
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
+                                    Needs attention
+                                </span>
+                            </div>
+                            {% else %}
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold
                                 {% if inst.status == 'SUBMITTED' %}bg-blue-100 text-blue-800
                                 {% elif inst.status == 'ACTIVE' %}bg-emerald-100 text-emerald-800
-                                {% elif inst.status in ('DISCREPANCY', 'FLAGGED') %}bg-rose-100 text-rose-800
                                 {% else %}bg-slate-100 text-slate-800{% endif %}">
                                 {{ inst.status | default_dash }}
                             </span>
+                            {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-xs text-slate-500">
                             {{ inst.created_at | format_datetime }}

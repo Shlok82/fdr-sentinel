@@ -184,18 +184,20 @@ def test_sample_pdf_generation_and_text_extraction(
 
 
 def test_duplicate_scenario_dynamic_fdr_lookup(
-    client: TestClient, make_user, sample_institution, auth_client_for, app_session: Session, monkeypatch
+    client: TestClient, make_user, sample_institution, sample_institution_b, auth_client_for, app_session: Session, monkeypatch
 ):
-    """Duplicate scenario adopts the FDR number of the latest submitted instrument or provides fallback."""
+    """Duplicate scenario adopts the FDR number of an instrument from a DIFFERENT institution or provides fallback."""
     monkeypatch.setattr(settings, "DEMO_MODE", True)
     inst_user = make_user("inst.dupcheck", "INSTITUTION_ADMIN", institution_id=sample_institution.id)
-    _, csrf = auth_client_for(inst_user)
+    other_user = make_user("inst.other", "INSTITUTION_ADMIN", institution_id=sample_institution_b.id)
 
     # 1. Before submitting any instrument, duplicate scenario returns default/fallback
+    auth_client_for(inst_user)
     res_empty = client.get("/demo/fdr-scenarios/duplicate_number").json()
     assert "DEMO-FDR-2026-001" in res_empty["fields"]["fdr_number"]
 
-    # 2. Submit an actual instrument
+    # 2. Other institution submits an actual instrument
+    _, csrf_other = auth_client_for(other_user)
     sample_pdf = generate_sample_fdr_pdf("clean")
     res_sub = client.post(
         "/institution/instruments/new",
@@ -210,15 +212,16 @@ def test_duplicate_scenario_dynamic_fdr_lookup(
             "tenure_months": "36",
             "issue_date": "2025-01-15",
             "maturity_date": "2028-01-15",
-            "joint_account_holder": "Regional Officer, AICTE & Principal, National Model Institute of Technology",
-            "csrf_token": csrf,
+            "joint_account_holder": "Regional Officer, AICTE & Principal, Demo Institute of Technology",
+            "csrf_token": csrf_other,
         },
         files={"scan_file": ("sbi_specimen.pdf", sample_pdf, "application/pdf")},
         follow_redirects=False,
     )
     assert res_sub.status_code == 303
 
-    # 3. Query duplicate scenario again: it should target the newly submitted instrument's FDR number!
+    # 3. Query duplicate scenario as inst_user (different institution): it targets the other institution's FDR number!
+    auth_client_for(inst_user)
     res_after = client.get("/demo/fdr-scenarios/duplicate_number").json()
     assert res_after["fields"]["fdr_number"] == "SBI-PUNE-SPECIAL-789"
     assert res_after["fields"]["bank_name"] == "State Bank of India"

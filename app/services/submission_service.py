@@ -10,6 +10,8 @@ from app.schemas.instrument import FDRSubmissionForm
 from app.services.document_service import DocumentService, delete_ciphertext_from_vault
 from app.services.audit_service import AuditService
 from app.services.clock_service import clock_service
+from app.services.instrument_fsm import Actor
+from app.services.discrepancy_engine import run_checks
 
 
 class FDRSubmissionService:
@@ -149,7 +151,16 @@ class FDRSubmissionService:
                 actor_ip=actor_ip,
             )
 
-            # 6. Commit the entire transaction atomically
+            # 6. Execute DiscrepancyEngine checks atomically within transaction
+            run_checks(
+                session=db,
+                instrument_id=instrument.id,
+                actor=Actor.from_user(user),
+                vault_base=vault_base,
+                master_key_b64=master_key_b64,
+            )
+
+            # 7. Commit the entire transaction atomically
             db.commit()
             db.refresh(instrument)
             return instrument
