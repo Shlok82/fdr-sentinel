@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     # Reusing existing debug and demo flags
     DEBUG: bool = False
     DEMO_MODE: bool = True
+    DEMO_SHOW_CREDENTIALS: bool = False
 
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000

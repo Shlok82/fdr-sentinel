@@ -179,21 +179,21 @@ The services will be available at:
 * **Cryptographic Audit Verification:** [http://localhost:8000/audit/verify](http://localhost:8000/audit/verify)
 
 ### 3. Seed Database with Demo Accounts
-Run the idempotent seeding script inside the running web container. Provide a strong seed password (minimum 12 characters):
+Run the idempotent seeding script inside the running web container. Configure `SEED_PASSWORD` (minimum 12 characters) in `.env` or pass it as an environment variable:
 ```powershell
-docker compose exec -e SEED_PASSWORD=DevSeedPassword2026! web python scripts/seed_users.py
+docker compose exec -e SEED_PASSWORD=<your_seed_password> web python scripts/seed_users.py
 ```
 
 ### 4. Demo Evaluation User Credentials
 
-| Username | Role | Assigned Entity / Context | Password | Capabilities |
+| Username | Role | Assigned Entity / Context | Password | Capabilities & Audit Visibility |
 | :--- | :--- | :--- | :--- | :--- |
-| `demo.admin` | `AUDITOR` (`is_demo_admin=true`) | Hackathon Jury / Demo Administrator | `DevSeedPassword2026!` | Full evaluation access, Demo Time Machine controls, audit verification |
-| `scrutiny.officer` | `SCRUTINY_OFFICER` | AICTE Scrutiny Officer | `DevSeedPassword2026!` | Scrutiny review console, discrepancy inspection, verification |
-| `approver.authority` | `APPROVER_AUTHORITY` | AICTE Approval Bureau Head | `DevSeedPassword2026!` | Competent authority workstation, deposit release authorization |
-| `auditor` | `AUDITOR` | Central Vigilance / Chief Auditor | `DevSeedPassword2026!` | Cryptographic chain verification, audit trail inspection |
-| `inst.admin` | `INSTITUTION_ADMIN` | Delhi Technological University | `DevSeedPassword2026!` | College FDR portal, submission uploads, status tracking |
-| `inst.admin2` | `INSTITUTION_ADMIN` | Sardar Patel Institute of Technology | `DevSeedPassword2026!` | Isolated second institution (tests boundary and isolation) |
+| `demo.admin` | `AUDITOR` (`is_demo_admin=true`) | Hackathon Jury / Demo Administrator | *[Configured via SEED_PASSWORD in .env]* | Full evaluation access, Demo Time Machine controls, full audit chain view |
+| `scrutiny.officer` | `SCRUTINY_OFFICER` | AICTE Scrutiny Officer | *[Configured via SEED_PASSWORD in .env]* | Scrutiny review console, discrepancy inspection, audit status-only view |
+| `approver.authority` | `APPROVER_AUTHORITY` | AICTE Approval Bureau Head | *[Configured via SEED_PASSWORD in .env]* | Competent authority workstation, deposit release authorization |
+| `auditor` | `AUDITOR` | Central Vigilance / Chief Auditor | *[Configured via SEED_PASSWORD in .env]* | Cryptographic chain verification, full audit trail inspection |
+| `inst.admin` | `INSTITUTION_ADMIN` | Delhi Technological University | *[Configured via SEED_PASSWORD in .env]* | College FDR portal, submission uploads, status tracking |
+| `inst.admin2` | `INSTITUTION_ADMIN` | Sardar Patel Institute of Technology | *[Configured via SEED_PASSWORD in .env]* | Isolated second institution (tests boundary and isolation) |
 
 ### 5. Running the Test Suite
 The automated test suite executes strictly against the isolated test database (`fdr_sentinel_test`), never modifying development records:

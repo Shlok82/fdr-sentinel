@@ -166,3 +166,91 @@ def test_password_over_72_bytes_rejected(client: TestClient, make_user):
         data={"username": "bcrypt.user", "password": long_password, "csrf_token": csrf_token}
     )
     assert response.status_code == 401
+
+
+def test_login_page_ui_and_duplicate_sign_in_button_removed(client: TestClient):
+    """Login page has updated statutory note and does not show duplicate 'Sign In' in navbar."""
+    res_login = client.get("/login")
+    assert res_login.status_code == 200
+    assert "Prototype portal for the AICTE Regulation Bureau problem statement. Designed with DPDP Act 2023 principles in mind; not a certified system." in res_login.text
+    # Navbar on /login should NOT render a 'Sign In' button link
+    assert '<a href="/login"' not in res_login.text
+
+    # Public landing page '/' SHOULD render a 'Sign In' button
+    res_home = client.get("/")
+    assert res_home.status_code == 200
+    assert '<a href="/login"' in res_home.text
+
+
+def test_demo_credentials_panel_gating(client: TestClient, monkeypatch):
+    """Demo credentials panel renders strictly under DEMO_MODE=true, DEMO_SHOW_CREDENTIALS=true, and APP_ENV!=production."""
+    test_seed_pw = "CustomMockSeedPassword123!"
+    monkeypatch.setattr(settings, "SEED_PASSWORD", test_seed_pw)
+
+    # Case 1: Default (DEMO_SHOW_CREDENTIALS=False) -> panel absent, seed password not leaked
+    monkeypatch.setattr(settings, "APP_ENV", "development")
+    monkeypatch.setattr(settings, "DEMO_MODE", True)
+    monkeypatch.setattr(settings, "DEMO_SHOW_CREDENTIALS", False)
+    res = client.get("/login")
+    assert "Demo accounts (prototype only, synthetic data)" not in res.text
+    assert test_seed_pw not in res.text
+
+    # Case 2: DEMO_SHOW_CREDENTIALS=True, DEMO_MODE=True, APP_ENV=development -> panel present with password and accounts
+    monkeypatch.setattr(settings, "DEMO_SHOW_CREDENTIALS", True)
+    res_on = client.get("/login")
+    assert "Demo accounts (prototype only, synthetic data)" in res_on.text
+    assert "inst.admin" in res_on.text
+    assert "demo.admin" in res_on.text
+    assert test_seed_pw in res_on.text
+
+    # Case 3: SEED_PASSWORD unset or REPLACE_ME -> panel shows placeholder notice
+    monkeypatch.setattr(settings, "SEED_PASSWORD", "REPLACE_ME")
+    res_placeholder = client.get("/login")
+    assert "Demo accounts (prototype only, synthetic data)" in res_placeholder.text
+    assert "Set SEED_PASSWORD in .env" in res_placeholder.text
+    assert test_seed_pw not in res_placeholder.text
+
+    # Case 4: APP_ENV=production -> panel NEVER renders even if flags are true
+    monkeypatch.setattr(settings, "SEED_PASSWORD", test_seed_pw)
+    monkeypatch.setattr(settings, "APP_ENV", "production")
+    res_prod = client.get("/login")
+    assert "Demo accounts (prototype only, synthetic data)" not in res_prod.text
+    assert test_seed_pw not in res_prod.text
+
+    # Case 5: DEMO_MODE=False -> panel NEVER renders even if DEMO_SHOW_CREDENTIALS is true
+    monkeypatch.setattr(settings, "APP_ENV", "development")
+    monkeypatch.setattr(settings, "DEMO_MODE", False)
+    res_no_demo = client.get("/login")
+    assert "Demo accounts (prototype only, synthetic data)" not in res_no_demo.text
+    assert test_seed_pw not in res_no_demo.text
+
+
+def test_session_cookie_secure_flag_per_environment(client: TestClient, make_user, monkeypatch):
+    """Session cookie Secure flag is set only when APP_ENV != 'development'."""
+    user = make_user("secure.flag.user", "AUDITOR", raw_password="SecretPassword123!")
+    csrf_token = generate_csrf_token()
+    client.cookies.set(settings.CSRF_COOKIE_NAME, csrf_token)
+
+    # 1. In development mode: Secure attribute must NOT be present
+    monkeypatch.setattr(settings, "APP_ENV", "development")
+    res_dev = client.post(
+        "/login",
+        data={"username": "secure.flag.user", "password": "SecretPassword123!", "csrf_token": csrf_token},
+        follow_redirects=False
+    )
+    assert res_dev.status_code == 302
+    set_cookie_dev = res_dev.headers.get("set-cookie", "")
+    cookie_parts_dev = [p.strip().lower() for p in set_cookie_dev.split(";")]
+    assert "secure" not in cookie_parts_dev
+
+    # 2. In production mode: Secure attribute MUST be present
+    monkeypatch.setattr(settings, "APP_ENV", "production")
+    res_prod = client.post(
+        "/login",
+        data={"username": "secure.flag.user", "password": "SecretPassword123!", "csrf_token": csrf_token},
+        follow_redirects=False
+    )
+    assert res_prod.status_code == 302
+    set_cookie_prod = res_prod.headers.get("set-cookie", "")
+    cookie_parts_prod = [p.strip().lower() for p in set_cookie_prod.split(";")]
+    assert "secure" in cookie_parts_prod

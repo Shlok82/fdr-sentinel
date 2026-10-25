@@ -6,9 +6,9 @@
 **Project:** FDR Sentinel (SIH Problem Statement 26265)  
 **Execution Context:** Solo Developer (4 Build Days + 1 Submission Day)  
 **Submission Deadline:** 28 October 2026  
-**Current Phase:** Day 2 — Auth, Roles & UI Shell (Stage 3 Complete)  
+**Current Phase:** Day 2 — Auth, Roles & UI Shell (Stage 3 & 3.1 Complete)  
 **Last Updated:** 2026-10-25  
-**Overall Readiness:** 42% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Seed Script & 76 Tests Passing)
+**Overall Readiness:** 45% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel & 79 Tests Passing)
 
 ---
 
@@ -35,6 +35,7 @@
 - [ ] Configure APScheduler as a single-process async worker executing scans against `ClockService`.
 - [ ] Implement proactive alert dispatch: 90/60/30/7-day horizons with catch-up logic and `UNIQUE (instrument_id, alert_type)` constraint.
 - [x] Build **Demo "Time Machine" Clock** toolbar: HTMX control modal restricted to `is_demo_admin` when `DEMO_MODE=true`.
+- [x] Build Stage 3.1 Demo Credentials Panel & UI fixes (triple-gated on `/login`, duplicate Sign In removal, plain text audit subtitle, responsive user badge with title attribute, environment-scoped cookie Secure flag).
 - [ ] Build Central Executive Dashboard: status counter cards and Chart.js **Maturity Wall** (monthly tranches & regional exposure).
 - [ ] Implement **Earned Trust Score Calculator**: Low Base (20) + Evidence Additions - Rule Deductions (0–100) with UI breakdown card.
 - [ ] Implement bilingual (English/Hindi) official notice templates and preview modals for maturing instruments.
@@ -96,6 +97,7 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 | **DEC-014** | 2026-10-25 | Dedicated Demo Admin Role | Created dedicated `demo.admin` user with `is_demo_admin=true` and `AUDITOR` role. | Isolates Time Machine evaluation controls to the designated hackathon jury account without corrupting operational roles. |
 | **DEC-015** | 2026-10-25 | Offline Vendored Assets | Local vendored static assets (`htmx.min.js`, `tailwind.min.js`, cropped brand icons). | Ensures 100% offline evaluation capability without external CDN dependencies or render delays. |
 | **DEC-016** | 2026-10-25 | Double-Submit Cookie CSRF | Synchronizer / double-submit CSRF protection on all state-changing endpoints. | Defends against cross-site request forgery across cookie-based session mutations while accommodating HTMX ajax interactions. |
+| **DEC-017** | 2026-10-25 | Demo Credentials Panel Gating | Triple-gated display (`APP_ENV != "production"`, `DEMO_MODE=true`, `DEMO_SHOW_CREDENTIALS=true`) with dynamic request-time password interpolation. | Prevents credential leaks in production or default deployments while offering 1-click "Fill" convenience for jury evaluators during prototype demonstrations. |
 
 ---
 

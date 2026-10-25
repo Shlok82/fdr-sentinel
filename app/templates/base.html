@@ -86,8 +86,8 @@
                     </nav>
 
                     <!-- User Pill & Role Badge -->
-                    <div class="flex items-center bg-slate-100 rounded-lg px-2.5 py-1 text-xs text-slate-700 border border-slate-200">
-                        <span class="font-medium truncate max-w-[120px]">{{ user.full_name }}</span>
+                    <div class="flex items-center bg-slate-100 rounded-lg px-2.5 py-1 text-xs text-slate-700 border border-slate-200" title="{{ user.full_name }}">
+                        <span class="font-medium truncate max-w-[140px] sm:max-w-[200px] md:max-w-[260px]">{{ user.full_name }}</span>
                         <span class="mx-1.5 text-slate-300">|</span>
                         <span class="font-mono text-[10px] uppercase font-semibold text-aicte-700 bg-aicte-50 px-1.5 py-0.5 rounded border border-aicte-200">{{ user.role }}</span>
                     </div>
@@ -99,7 +99,7 @@
                             Logout
                         </button>
                     </form>
-                    {% else %}
+                    {% elif request.url.path != "/login" %}
                     <a href="/login" class="text-xs bg-aicte-600 hover:bg-aicte-700 text-white font-medium px-3.5 py-1.5 rounded transition focus:outline-none focus:ring-2 focus:ring-aicte-500">
                         Sign In
                     </a>

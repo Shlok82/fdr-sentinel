@@ -29,6 +29,8 @@ def test_audit_verify_fresh_chain(client: TestClient, make_user, auth_client_for
     assert res.status_code == 200
     assert "STATUS: OK" in res.text
     assert "ZERO Tampering Detected" in res.text
+    assert "Linear-time O(n) verification of SHA-256 hash chaining across all audit records" in res.text
+    assert "$O(n)$" not in res.text
 
     # Read-only verification: must NOT write new audit records
     count_after = app_session.execute(text("SELECT count(*) FROM audit_log")).scalar()

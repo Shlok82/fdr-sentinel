@@ -36,6 +36,80 @@ def default_dashboard_for_role(role: str) -> str:
     return mapping.get(role, "/dashboard")
 
 
+def get_login_context(
+    request: Request,
+    csrf_token: str,
+    next_url: str = "",
+    error: Optional[str] = None
+) -> dict:
+    show_demo_credentials = (
+        settings.APP_ENV != "production"
+        and settings.DEMO_MODE
+        and settings.DEMO_SHOW_CREDENTIALS
+    )
+    demo_password = None
+    if show_demo_credentials:
+        if (
+            settings.SEED_PASSWORD
+            and settings.SEED_PASSWORD != "REPLACE_ME"
+            and len(settings.SEED_PASSWORD.strip()) >= 12
+        ):
+            demo_password = settings.SEED_PASSWORD.strip()
+
+    demo_accounts = [
+        {
+            "username": "inst.admin",
+            "role": "INSTITUTION_ADMIN",
+            "institution": "Delhi Technological University",
+            "summary": "Submit FDR, view status, track college deposits",
+        },
+        {
+            "username": "inst.admin2",
+            "role": "INSTITUTION_ADMIN",
+            "institution": "Sardar Patel Institute of Technology",
+            "summary": "Second college to test multi-institution isolation",
+        },
+        {
+            "username": "scrutiny.officer",
+            "role": "SCRUTINY_OFFICER",
+            "institution": "AICTE HQ",
+            "summary": "Review submissions, inspect discrepancies, verify documents",
+        },
+        {
+            "username": "approver.authority",
+            "role": "APPROVER_AUTHORITY",
+            "institution": "AICTE HQ",
+            "summary": "Authorize releases, executive sign-off workstation",
+        },
+        {
+            "username": "auditor",
+            "role": "AUDITOR",
+            "institution": "Central Vigilance",
+            "summary": "Inspect tamper-evident audit log and cryptographic chain",
+        },
+        {
+            "username": "demo.admin",
+            "role": "AUDITOR (Demo Admin)",
+            "institution": "Jury / Evaluation",
+            "summary": "Jury demo admin with Evaluation Time Machine controls",
+        },
+    ] if show_demo_credentials else []
+
+    return {
+        "request": request,
+        "csrf_token": csrf_token,
+        "next": next_url,
+        "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
+        "is_simulated": clock_service.is_simulated,
+        "demo_mode": settings.DEMO_MODE,
+        "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
+        "error": error,
+        "show_demo_credentials": show_demo_credentials,
+        "demo_password": demo_password,
+        "demo_accounts": demo_accounts,
+    }
+
+
 @router.get("/login", response_class=HTMLResponse)
 def login_page(
     request: Request,
@@ -53,16 +127,7 @@ def login_page(
         csrf_token = generate_csrf_token()
         set_csrf_cookie = True
 
-    context = {
-        "request": request,
-        "csrf_token": csrf_token,
-        "next": next or "",
-        "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
-        "is_simulated": clock_service.is_simulated,
-        "demo_mode": settings.DEMO_MODE,
-        "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
-        "error": None,
-    }
+    context = get_login_context(request, csrf_token, next or "", error=None)
 
     response = templates.TemplateResponse("auth/login.html", context)
     if set_csrf_cookie:
@@ -115,16 +180,7 @@ def login_action(
         )
         db.commit()
 
-        context = {
-            "request": request,
-            "csrf_token": cookie_csrf,
-            "next": next or "",
-            "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
-            "is_simulated": clock_service.is_simulated,
-            "demo_mode": settings.DEMO_MODE,
-            "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
-            "error": "Invalid username or password.",
-        }
+        context = get_login_context(request, cookie_csrf, next or "", error="Invalid username or password.")
         return templates.TemplateResponse("auth/login.html", context, status_code=status.HTTP_401_UNAUTHORIZED)
 
     # 4. Handle inactive user
@@ -141,16 +197,12 @@ def login_action(
         )
         db.commit()
 
-        context = {
-            "request": request,
-            "csrf_token": cookie_csrf,
-            "next": next or "",
-            "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
-            "is_simulated": clock_service.is_simulated,
-            "demo_mode": settings.DEMO_MODE,
-            "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
-            "error": "Account is deactivated. Please contact your AICTE administrator.",
-        }
+        context = get_login_context(
+            request,
+            cookie_csrf,
+            next or "",
+            error="Account is deactivated. Please contact your AICTE administrator."
+        )
         return templates.TemplateResponse("auth/login.html", context, status_code=status.HTTP_401_UNAUTHORIZED)
 
     # 5. Verify password
@@ -167,16 +219,7 @@ def login_action(
         )
         db.commit()
 
-        context = {
-            "request": request,
-            "csrf_token": cookie_csrf,
-            "next": next or "",
-            "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
-            "is_simulated": clock_service.is_simulated,
-            "demo_mode": settings.DEMO_MODE,
-            "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
-            "error": "Invalid username or password.",
-        }
+        context = get_login_context(request, cookie_csrf, next or "", error="Invalid username or password.")
         return templates.TemplateResponse("auth/login.html", context, status_code=status.HTTP_401_UNAUTHORIZED)
 
     # 6. Success: record audit entry and issue token
