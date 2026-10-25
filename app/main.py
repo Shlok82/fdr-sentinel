@@ -1,13 +1,17 @@
+import logging
+import traceback
 from fastapi import FastAPI, Request, Response, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from pathlib import Path
 from app.core.config import settings
+from app.core.templates import templates
 from app.routers import health, auth, demo, pages, instruments
 from app.services.clock_service import clock_service
+
+logger = logging.getLogger("uvicorn.error")
 
 # Initialize FastAPI application
 app = FastAPI(
@@ -27,9 +31,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-templates = Jinja2Templates(directory="app/templates")
-
 
 # Basic Security Headers Middleware
 @app.middleware("http")
@@ -53,6 +54,15 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
         or "application/json" in accept
     )
 
+    if exc.status_code >= 500:
+        logger.error(
+            "HTTP %s on %s %s: %s",
+            exc.status_code,
+            request.method,
+            request.url.path,
+            exc.detail
+        )
+
     # For 401 on standard HTML navigation requests, redirect to login
     if exc.status_code == status.HTTP_401_UNAUTHORIZED and not is_api and not is_htmx:
         next_url = request.url.path
@@ -70,10 +80,11 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
         elif exc.status_code >= 500:
             template_name = "errors/500.html"
 
+        safe_detail = "Internal Server Error" if exc.status_code >= 500 else exc.detail
         ctx = {
             "request": request,
             "user": None,
-            "detail": exc.detail,
+            "detail": safe_detail,
             "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
             "is_simulated": clock_service.is_simulated,
             "demo_mode": settings.DEMO_MODE,
@@ -82,7 +93,52 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
         }
         return templates.TemplateResponse(template_name, ctx, status_code=exc.status_code)
 
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    safe_detail = "Internal Server Error" if exc.status_code >= 500 else exc.detail
+    return JSONResponse(status_code=exc.status_code, content={"detail": safe_detail})
+
+
+# Global catch-all handler for unexpected Python exceptions (TypeError, AttributeError, etc.)
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """Global catch-all exception handler for unexpected Python/server errors.
+    
+    Guarantees:
+    1. Full traceback and request context logged to server log.
+    2. Renders styled 500 HTML page without leaking stack trace or internal exception details.
+    3. Returns JSON for API/json-accept requests.
+    """
+    logger.error(
+        "Unhandled server exception on %s %s: %s\n%s",
+        request.method,
+        request.url.path,
+        str(exc),
+        traceback.format_exc()
+    )
+
+    accept = request.headers.get("accept", "")
+    is_api = (
+        request.url.path.startswith("/api/")
+        or request.url.path.startswith("/demo/")
+        or request.url.path.startswith("/healthz")
+        or "application/json" in accept
+    )
+    if is_api:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": "Internal Server Error"}
+        )
+
+    ctx = {
+        "request": request,
+        "user": None,
+        "detail": "Internal Server Error",
+        "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
+        "is_simulated": clock_service.is_simulated,
+        "demo_mode": settings.DEMO_MODE,
+        "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
+        "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
+    }
+    return templates.TemplateResponse("errors/500.html", ctx, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # Ensure static and storage directories exist

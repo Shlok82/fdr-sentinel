@@ -30,6 +30,9 @@ def list_institution_instruments(
 ):
     """Lists all FDR instruments belonging strictly to the caller's institution."""
     institution = db.query(Institution).filter(Institution.id == user.institution_id).first()
+    # Null-Safety & Query Rule:
+    # Orders by created_at.desc(); any future queries ordering by nullable maturity_date must use nullslast().
+    # All displayed amounts and dates are formatted exclusively through format_inr and format_date in the template.
     instruments = (
         db.query(Instrument)
         .filter(Instrument.institution_id == user.institution_id)

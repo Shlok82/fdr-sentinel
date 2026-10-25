@@ -70,16 +70,16 @@
                     {% for inst in instruments %}
                     <tr class="hover:bg-slate-50/60 transition">
                         <td class="px-6 py-4 whitespace-nowrap font-mono font-medium text-slate-900">
-                            {{ inst.fdr_number }}
+                            {{ inst.fdr_number | default_dash }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-slate-700">
-                            {{ inst.bank_name }}
+                            {{ inst.bank_name | default_dash }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-slate-900 font-medium">
-                            ₹{{ "{:,.2f}".format(inst.principal_amount) }}
+                            {{ inst.principal_amount | format_inr }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-slate-600">
-                            {{ inst.maturity_date.strftime("%d %b %Y") if inst.maturity_date else "—" }}
+                            {{ inst.maturity_date | format_date }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold
@@ -87,11 +87,11 @@
                                 {% elif inst.status == 'ACTIVE' %}bg-emerald-100 text-emerald-800
                                 {% elif inst.status in ('DISCREPANCY', 'FLAGGED') %}bg-rose-100 text-rose-800
                                 {% else %}bg-slate-100 text-slate-800{% endif %}">
-                                {{ inst.status }}
+                                {{ inst.status | default_dash }}
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-xs text-slate-500">
-                            {{ inst.created_at.strftime("%d %b %Y, %H:%M") if inst.created_at else "—" }}
+                            {{ inst.created_at | format_datetime }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-xs font-medium">
                             <a href="/institution/instruments/{{ inst.id }}" class="text-aicte-600 hover:text-aicte-800 hover:underline">

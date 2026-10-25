@@ -20,7 +20,7 @@
                     {{ instrument.fdr_number or "FDR Record (Number Pending)" }}
                 </h1>
                 <p class="mt-1 text-xs text-slate-500">
-                    Region: <span class="font-medium text-slate-700">{{ institution.region if institution else "—" }}</span> • Submitted: {{ instrument.created_at.strftime("%d %b %Y, %H:%M:%S UTC") }}
+                    Region: <span class="font-medium text-slate-700">{{ institution.region if institution else "—" }}</span> • Submitted: {{ instrument.created_at | format_datetime("%d %b %Y, %H:%M:%S UTC") }}
                 </p>
             </div>
             <div class="flex items-center space-x-3">
@@ -82,10 +82,10 @@
         <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
             <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Maturity Date</span>
             <div class="mt-1 text-xl font-bold text-slate-900 font-mono">
-                {{ instrument.maturity_date.strftime("%d %b %Y") if instrument.maturity_date else "—" }}
+                {{ instrument.maturity_date | format_date }}
             </div>
             <div class="mt-2 text-[10px] text-slate-500">
-                Issued: <span class="font-mono text-slate-700">{{ instrument.issue_date.strftime("%d %b %Y") if instrument.issue_date else "—" }}</span>
+                Issued: <span class="font-mono text-slate-700">{{ instrument.issue_date | format_date }}</span>
             </div>
         </div>
     </div>
@@ -107,8 +107,8 @@
                 ("principal_amount", "Principal Deposit", instrument.principal_amount | format_inr),
                 ("maturity_amount", "Maturity Value", instrument.maturity_amount | format_inr),
                 ("interest_rate_percent", "Interest Rate (% p.a.)", instrument.interest_rate_percent),
-                ("issue_date", "Issue Date", instrument.issue_date.strftime("%d %b %Y") if instrument.issue_date else None),
-                ("maturity_date", "Maturity Date", instrument.maturity_date.strftime("%d %b %Y") if instrument.maturity_date else None),
+                ("issue_date", "Issue Date", instrument.issue_date | format_date),
+                ("maturity_date", "Maturity Date", instrument.maturity_date | format_date),
                 ("tenure_months", "Tenure (Months)", instrument.tenure_months),
                 ("joint_account_holder", "Joint Account Clause", instrument.joint_account_holder)
             ] %}
@@ -150,7 +150,7 @@
                     <div>
                         <div class="font-semibold text-slate-900">{{ doc.file_name }}</div>
                         <div class="text-[11px] text-slate-400 font-mono mt-0.5">
-                            {{ doc.file_mime_type }} • {{ (doc.file_size_bytes / 1024) | round(1) }} KB
+                            {{ doc.file_mime_type }} • {{ doc.file_size_bytes | format_filesize }}
                         </div>
                         <div class="text-[10px] text-slate-400 font-mono mt-0.5">
                             SHA-256: <span class="text-slate-600">{{ doc.sha256_hash }}</span>

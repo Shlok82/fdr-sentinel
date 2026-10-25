@@ -1,7 +1,7 @@
 from typing import Optional
 from fastapi import APIRouter, Request, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
+from app.core.templates import templates
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
@@ -11,7 +11,6 @@ from app.models.instrument import Instrument
 from app.services.clock_service import clock_service
 from app.services.audit_service import verify_chain
 
-templates = Jinja2Templates(directory="app/templates")
 router = APIRouter(include_in_schema=False)
 
 
@@ -71,6 +70,11 @@ def institution_workspace(
     ctx["role_title"] = "Institution Portal — FDR Custody & Submissions"
     ctx["role_description"] = "Submit new Fixed Deposit Receipts, track verification status, and manage deposit custody."
 
+    # Query institution instruments.
+    # Null-Safety & Aggregate Rules:
+    # 1. Orders by created_at.desc(); any query ordering by nullable fields (e.g. maturity_date) must use nullslast().
+    # 2. Status counts evaluate exact string equality; sums or math on nullable amounts (principal_amount, maturity_amount)
+    #    must handle None explicitly (e.g., using COALESCE in SQL or (x or 0) in Python).
     instruments = (
         db.query(Instrument)
         .filter(Instrument.institution_id == user.institution_id)

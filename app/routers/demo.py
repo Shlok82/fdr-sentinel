@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, Response, Depends, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
+from app.core.templates import templates
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
@@ -10,7 +10,6 @@ from app.services.clock_service import clock_service
 from app.services.demo_scenarios import get_scenario_data
 from app.services.demo_documents import generate_demo_fdr_pdf
 
-templates = Jinja2Templates(directory="app/templates")
 router = APIRouter(tags=["Demo Tools"])
 
 

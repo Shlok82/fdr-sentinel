@@ -2,8 +2,8 @@ import uuid
 from typing import Optional
 from fastapi import APIRouter, Request, Response, Depends, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from app.core.templates import templates
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import (
@@ -19,7 +19,6 @@ from app.models.user import User
 from app.services.audit_service import AuditService
 from app.services.clock_service import clock_service
 
-templates = Jinja2Templates(directory="app/templates")
 router = APIRouter(tags=["Authentication"])
 
 SYSTEM_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000000")

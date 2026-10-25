@@ -57,17 +57,17 @@
                     {% for inst in instruments %}
                     <tr class="hover:bg-slate-50/80 transition-colors">
                         <td class="py-3.5 px-6 font-mono font-medium text-slate-900">
-                            {{ inst.fdr_number or "—" }}
+                            {{ inst.fdr_number | default_dash }}
                         </td>
                         <td class="py-3.5 px-6">
-                            <div class="font-medium text-slate-800">{{ inst.bank_name or "—" }}</div>
+                            <div class="font-medium text-slate-800">{{ inst.bank_name | default_dash }}</div>
                             <div class="text-[11px] text-slate-400">{{ inst.bank_branch or "" }}</div>
                         </td>
                         <td class="py-3.5 px-6 font-semibold text-slate-800">
                             {{ inst.principal_amount | format_inr }}
                         </td>
                         <td class="py-3.5 px-6 font-mono text-slate-600">
-                            {{ inst.maturity_date.strftime("%d %b %Y") if inst.maturity_date else "—" }}
+                            {{ inst.maturity_date | format_date }}
                         </td>
                         <td class="py-3.5 px-6">
                             {% if inst.status == "SUBMITTED" %}

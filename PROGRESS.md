@@ -6,9 +6,9 @@
 **Project:** FDR Sentinel (SIH Problem Statement 26265)  
 **Execution Context:** Solo Developer (4 Build Days + 1 Submission Day)  
 **Submission Deadline:** 28 October 2026  
-**Current Phase:** Day 2 — Submission Form Demo Tools, Upload UX & UI Neutralization (Stage 4.2 Complete)  
+**Current Phase:** Day 2 — Template Formatting Hardening, Global 500 Handler & Null-Safety (Stage 4.3 Bugfix Complete)  
 **Last Updated:** 2026-10-25  
-**Overall Readiness:** 65% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel, Nullable Migration 0002, AES-256-GCM Envelope Encryption with AAD Document ID Binding, Sharded Storage Vault, Atomic Multi-Table Submission Service, Field Provenance, Scoped Views & Downloads, Submission Form Demo Tools & Scenarios, fpdf2 Specimen PDF Generator, Fictional Data Neutralization, Minimal Health Probe, 121 Tests Passing)
+**Overall Readiness:** 66% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel, Nullable Migration 0002, AES-256-GCM Envelope Encryption with AAD Document ID Binding, Sharded Storage Vault, Atomic Multi-Table Submission Service, Field Provenance, Scoped Views & Downloads, Submission Form Demo Tools & Scenarios, fpdf2 Specimen PDF Generator, Fictional Data Neutralization, Minimal Health Probe, Shared Null-Safe Filters format_inr/format_date/format_datetime/format_filesize/default_dash, Global Exception Catch-All 500 Handler, Template Formatting Linting Test, 124 Tests Passing)
 
 ---
 
@@ -107,6 +107,7 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 | **DEC-024** | 2026-10-25 | Synthetic Specimen PDF Generation via `fpdf2` | Lightweight (< 20 KB) pure-Python document generation with diagonal `"SPECIMEN - DEMO ONLY, NOT A REAL INSTRUMENT"` watermark, extractable text layer, structured receipt layout, and Latin-1 safe characters (`-`, `Rs.`). | Avoids heavy C binaries/headless browsers; produces extractable text layer matching form fields for instant evaluation attachments. |
 | **DEC-025** | 2026-10-25 | Fictional Seed Data & Copy Neutralization | All institution names ("National Model Institute of Technology", "Demo Institute of Technology"), individual principal/dean names, and bank names neutralized to purely fictional demo entities across seed scripts, auth panel, templates, and README. | Ensures ethical data compliance and prevents impersonating real colleges, banks, or academic officials. |
 | **DEC-026** | 2026-10-25 | UI Neutralization & Production Presentation | Replaced all build-stage notices ("Stage 3 Active", "arrives in Stage 4", etc.) with production-ready status cards and review queues; `/healthz` probe minimized strictly to `{"status": "ok"}`; added regression test asserting zero developmental patterns rendered on any role page. | Delivers a clean, professional production appearance across all workspaces without internal development artifacts. |
+| **DEC-027** | 2026-10-25 | Shared Null-Safe Filters & Global Exception Boundary | Centralized all currency, date, datetime, file size, and string display through shared singleton Jinja2 filters (`format_inr`, `format_date`, `format_datetime`, `format_filesize`, `default_dash`) returning neutral em-dashes for None/blank values. Replaced separate router template instances with the shared singleton. Registered global `@app.exception_handler(Exception)` capturing unhandled Python errors, logging full tracebacks to server logs, and rendering styled 500 HTML without leaking internal traces or stack information. | Eliminates NoneType format crashes on blank instrument fields and guarantees graceful error handling without leaking sensitive details or raw text 500 errors. |
 
 ---
 

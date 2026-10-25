@@ -1,9 +1,15 @@
+import os
 import re
 import uuid
+from datetime import date
+from decimal import Decimal
 import pytest
+from fastapi import Request
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
+from app.main import app
 from app.models import Instrument, Document, FieldProvenance
+from app.services.clock_service import clock_service
 
 
 VALID_PDF_BYTES = b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF"
@@ -147,3 +153,226 @@ def test_healthz_endpoint_minimal(client: TestClient):
     assert res.status_code == 200
     assert res.json() == {"status": "ok"}
     assert set(res.json().keys()) == {"status"}
+
+
+def test_no_raw_formatting_in_templates():
+    """Scans all templates to ensure formatting bypasses are forbidden; shared filters are the only allowed formatters."""
+    templates_dir = "app/templates"
+    forbidden_patterns = [
+        (re.compile(r'\.format\('), "Raw .format() call"),
+        (re.compile(r'\"\{:,'), "Raw '{:, format string"),
+        (re.compile(r'\bstrftime\b'), "Raw .strftime() call"),
+        (re.compile(r'\|\s*round'), "Raw |round filter"),
+        (re.compile(r'\.date\(\)'), "Raw .date() call"),
+    ]
+
+    violations = []
+    for root, _, files in os.walk(templates_dir):
+        for f in files:
+            if f.endswith(".html"):
+                p = os.path.join(root, f)
+                with open(p, encoding="utf-8") as fh:
+                    for line_no, line in enumerate(fh, 1):
+                        for pat, desc in forbidden_patterns:
+                            if pat.search(line):
+                                violations.append(f"{p}:{line_no} [{desc}]: {line.strip()}")
+
+    assert not violations, (
+        "Templates must exclusively use shared null-safe filters (format_inr, format_date, format_datetime, format_filesize, default_dash).\n"
+        "Found raw formatting violations:\n" + "\n".join(violations)
+    )
+
+
+def test_realistic_instruments_rendering_null_safety(
+    client: TestClient, make_user, sample_institution, auth_client_for, owner_session: Session
+):
+    """Verifies that templates gracefully handle realistic edge-case instruments without 500 or unrendered syntax."""
+    inst_user = make_user("inst.edge", "INSTITUTION_ADMIN", institution_id=sample_institution.id)
+    scrutiny_user = make_user("scrutiny.edge", "SCRUTINY_OFFICER")
+    approver_user = make_user("approver.edge", "APPROVER_AUTHORITY")
+    auditor_user = make_user("auditor.edge", "AUDITOR")
+    demo_admin_user = make_user("demo.edge", "AUDITOR", is_demo_admin=True)
+
+    now_ts = clock_service.now()
+
+    # 1. Instrument with EVERY nullable business field as NULL
+    inst_all_null = Instrument(
+        id=uuid.uuid4(),
+        institution_id=sample_institution.id,
+        fdr_number=None,
+        bank_name=None,
+        bank_branch=None,
+        ifsc_code=None,
+        principal_amount=None,
+        maturity_amount=None,
+        interest_rate_percent=None,
+        issue_date=None,
+        maturity_date=None,
+        tenure_months=None,
+        joint_account_holder=None,
+        status="SUBMITTED",
+        trust_score=20,
+        trust_score_breakdown={},
+        created_at=now_ts,
+        updated_at=now_ts,
+    )
+
+    # 2. Instrument with only SOME fields blank (missing bank_name, branch, IFSC, joint account)
+    inst_partial_blank = Instrument(
+        id=uuid.uuid4(),
+        institution_id=sample_institution.id,
+        fdr_number="FDR-PARTIAL-001",
+        bank_name=None,
+        bank_branch=None,
+        ifsc_code=None,
+        principal_amount=Decimal("1500000.00"),
+        maturity_amount=Decimal("1800000.00"),
+        interest_rate_percent=Decimal("7.00"),
+        issue_date=date(2025, 1, 1),
+        maturity_date=date(2028, 1, 1),
+        tenure_months=36,
+        joint_account_holder=None,
+        status="SUBMITTED",
+        trust_score=20,
+        trust_score_breakdown={},
+        created_at=now_ts,
+        updated_at=now_ts,
+    )
+
+    # 3. Instrument with an EXPIRED maturity date in the past
+    inst_expired = Instrument(
+        id=uuid.uuid4(),
+        institution_id=sample_institution.id,
+        fdr_number="FDR-EXPIRED-002",
+        bank_name="State Bank of India",
+        bank_branch="Main Branch, Pune",
+        ifsc_code="SBIN0000456",
+        principal_amount=Decimal("3500000.00"),
+        maturity_amount=Decimal("4300000.00"),
+        interest_rate_percent=Decimal("7.50"),
+        issue_date=date(2020, 1, 1),
+        maturity_date=date(2023, 1, 1),
+        tenure_months=36,
+        joint_account_holder="Regional Officer, AICTE",
+        status="SUBMITTED",
+        trust_score=20,
+        trust_score_breakdown={},
+        created_at=now_ts,
+        updated_at=now_ts,
+    )
+
+    # 4. Instrument with a VERY LARGE principal amount (₹99.99 Crores)
+    inst_large_amount = Instrument(
+        id=uuid.uuid4(),
+        institution_id=sample_institution.id,
+        fdr_number="FDR-LARGE-003",
+        bank_name="Punjab National Bank",
+        bank_branch="Connaught Place, New Delhi",
+        ifsc_code="PUNB0001234",
+        principal_amount=Decimal("999999999.00"),
+        maturity_amount=Decimal("1250000000.00"),
+        interest_rate_percent=Decimal("8.00"),
+        issue_date=date(2026, 1, 1),
+        maturity_date=date(2029, 1, 1),
+        tenure_months=36,
+        joint_account_holder="Regional Officer, AICTE & Principal",
+        status="SUBMITTED",
+        trust_score=20,
+        trust_score_breakdown={},
+        created_at=now_ts,
+        updated_at=now_ts,
+    )
+
+    # 5. Instrument with a DUPLICATE FDR number
+    inst_duplicate = Instrument(
+        id=uuid.uuid4(),
+        institution_id=sample_institution.id,
+        fdr_number="FDR-LARGE-003",  # Duplicate number matching #4
+        bank_name="Punjab National Bank",
+        bank_branch="Connaught Place, New Delhi",
+        ifsc_code="PUNB0001234",
+        principal_amount=Decimal("5000000.00"),
+        maturity_amount=Decimal("6200000.00"),
+        interest_rate_percent=Decimal("7.20"),
+        issue_date=date(2026, 2, 1),
+        maturity_date=date(2029, 2, 1),
+        tenure_months=36,
+        joint_account_holder="Regional Officer, AICTE & Principal",
+        status="SUBMITTED",
+        trust_score=20,
+        trust_score_breakdown={},
+        created_at=now_ts,
+        updated_at=now_ts,
+    )
+
+    owner_session.add_all([inst_all_null, inst_partial_blank, inst_expired, inst_large_amount, inst_duplicate])
+    owner_session.commit()
+
+    test_instruments = [inst_all_null, inst_partial_blank, inst_expired, inst_large_amount, inst_duplicate]
+
+    # Test 1: GET /institution renders clean HTML with neutral dashes and large amount
+    auth_client_for(inst_user)
+    res_inst = client.get("/institution")
+    assert res_inst.status_code == 200, f"/institution returned {res_inst.status_code}"
+    assert "{{" not in res_inst.text
+    assert "{%" not in res_inst.text
+    assert "—" in res_inst.text  # Neutral dash for null values
+    assert "₹ 99,99,99,999.00" in res_inst.text  # Indian format for large amount
+
+    # Test 2: GET /institution/instruments renders clean list
+    res_list = client.get("/institution/instruments")
+    assert res_list.status_code == 200, f"/institution/instruments returned {res_list.status_code}"
+    assert "{{" not in res_list.text
+    assert "{%" not in res_list.text
+    assert "—" in res_list.text
+    assert "₹ 99,99,99,999.00" in res_list.text
+
+    # Test 3: Detail views for all 5 instruments across all roles
+    for inst in test_instruments:
+        # Institution detail view
+        auth_client_for(inst_user)
+        res_inst_detail = client.get(f"/institution/instruments/{inst.id}")
+        assert res_inst_detail.status_code == 200, f"Institution detail for {inst.id} returned {res_inst_detail.status_code}"
+        assert "{{" not in res_inst_detail.text
+        assert "{%" not in res_inst_detail.text
+
+        # Staff detail views across regulatory roles
+        for staff_role_user in [scrutiny_user, approver_user, auditor_user, demo_admin_user]:
+            auth_client_for(staff_role_user)
+            res_staff_detail = client.get(f"/instruments/{inst.id}")
+            assert res_staff_detail.status_code == 200, (
+                f"Staff detail for {inst.id} with role {staff_role_user.role} returned {res_staff_detail.status_code}"
+            )
+            assert "{{" not in res_staff_detail.text
+            assert "{%" not in res_staff_detail.text
+
+
+def test_unhandled_exception_renders_styled_500_and_leaks_no_traceback():
+    """Asserts that unexpected server errors render the styled 500 template and leak zero internal traceback details."""
+    client_no_raise = TestClient(app, raise_server_exceptions=False)
+
+    # Register a transient endpoint that simulates an unhandled crash if not already present
+    route_paths = [getattr(r, "path", None) for r in app.routes]
+    if "/_test_deliberate_crash" not in route_paths:
+        @app.get("/_test_deliberate_crash")
+        def _crash_route():
+            raise TypeError("Simulated unexpected NoneType formatting exception")
+
+    # 1. HTML request gets styled 500 error page without stack trace
+    res_html = client_no_raise.get("/_test_deliberate_crash", headers={"Accept": "text/html"})
+    assert res_html.status_code == 500
+    assert "Internal Server Anomaly (500)" in res_html.text
+    assert "Return to Safe Workspace" in res_html.text
+    # Verify no leaks of internal details or stack traces
+    assert "Traceback" not in res_html.text
+    assert "Simulated unexpected NoneType formatting exception" not in res_html.text
+    assert "TypeError" not in res_html.text
+    assert "{{" not in res_html.text
+    assert "{%" not in res_html.text
+
+    # 2. JSON request gets clean JSON 500 without internal trace
+    res_json = client_no_raise.get("/_test_deliberate_crash", headers={"Accept": "application/json"})
+    assert res_json.status_code == 500
+    data = res_json.json()
+    assert data == {"detail": "Internal Server Error"}
+    assert "Simulated unexpected NoneType" not in res_json.text

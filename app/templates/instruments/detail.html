@@ -25,7 +25,7 @@
                         {{ instrument.fdr_number or "FDR Submission (Reference Pending)" }}
                     </h1>
                     <p class="mt-1 text-xs text-slate-500">
-                        Submitted at {{ instrument.created_at.strftime("%d %b %Y, %H:%M:%S UTC") }} • Renewal Sequence: {{ instrument.renewal_sequence }}
+                        Submitted at {{ instrument.created_at | format_datetime("%d %b %Y, %H:%M:%S UTC") }} • Renewal Sequence: {{ instrument.renewal_sequence }}
                     </p>
                 </div>
                 <div class="flex items-center space-x-3">
@@ -85,10 +85,10 @@
         <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
             <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">Maturity Horizon</span>
             <div class="mt-1 text-xl font-bold text-slate-900 font-mono">
-                {{ instrument.maturity_date.strftime("%d %b %Y") if instrument.maturity_date else "—" }}
+                {{ instrument.maturity_date | format_date }}
             </div>
             <div class="mt-2 text-[10px] text-slate-500">
-                Issue Date: <span class="font-mono text-slate-700">{{ instrument.issue_date.strftime("%d %b %Y") if instrument.issue_date else "—" }}</span>
+                Issue Date: <span class="font-mono text-slate-700">{{ instrument.issue_date | format_date }}</span>
                 {% if instrument.tenure_months %}({{ instrument.tenure_months }} mos){% endif %}
             </div>
         </div>
@@ -215,7 +215,7 @@
             <!-- Row: Issue Date -->
             <div class="px-6 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div class="sm:w-1/3 text-slate-500 font-medium">Issue Date</div>
-                <div class="sm:w-1/3 font-mono text-slate-900">{{ instrument.issue_date.strftime("%d %b %Y") if instrument.issue_date else "—" }}</div>
+                <div class="sm:w-1/3 font-mono text-slate-900">{{ instrument.issue_date | format_date }}</div>
                 <div class="sm:w-1/3 flex justify-start sm:justify-end">
                     {% if prov_map.issue_date %}
                     <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 font-mono">
@@ -230,7 +230,7 @@
             <!-- Row: Maturity Date -->
             <div class="px-6 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div class="sm:w-1/3 text-slate-500 font-medium">Maturity Date</div>
-                <div class="sm:w-1/3 font-mono text-slate-900">{{ instrument.maturity_date.strftime("%d %b %Y") if instrument.maturity_date else "—" }}</div>
+                <div class="sm:w-1/3 font-mono text-slate-900">{{ instrument.maturity_date | format_date }}</div>
                 <div class="sm:w-1/3 flex justify-start sm:justify-end">
                     {% if prov_map.maturity_date %}
                     <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 font-mono">
@@ -284,7 +284,7 @@
                     <div>
                         <div class="font-semibold text-slate-900">{{ doc.file_name }}</div>
                         <div class="text-[11px] text-slate-400 font-mono mt-0.5">
-                            {{ doc.file_mime_type }} • {{ (doc.file_size_bytes / 1024) | round(1) }} KB
+                            {{ doc.file_mime_type }} • {{ doc.file_size_bytes | format_filesize }}
                         </div>
                         <div class="text-[10px] text-slate-400 font-mono mt-0.5">
                             SHA-256: <span class="text-slate-600">{{ doc.sha256_hash }}</span>
