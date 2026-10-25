@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Numeric, Integer, Date, DateTime, ForeignKey
+from sqlalchemy import Column, String, Numeric, Integer, Date, DateTime, ForeignKey, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.models.base import Base
 
@@ -21,9 +21,17 @@ class Instrument(Base):
     tenure_months = Column(Integer, nullable=True)
     joint_account_holder = Column(String(255), nullable=True)
     status = Column(String(30), index=True, default="SUBMITTED", nullable=False)
+    prior_state = Column(String(30), nullable=True)
     previous_instrument_id = Column(UUID(as_uuid=True), ForeignKey("instruments.id", ondelete="SET NULL"), nullable=True, index=True)
     renewal_sequence = Column(Integer, default=1, nullable=False)
     trust_score = Column(Integer, default=20, nullable=False)
     trust_score_breakdown = Column(JSONB, default=dict, nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False)
     updated_at = Column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('SUBMITTED', 'UNDER_SCRUTINY', 'DISCREPANCY_FLAGGED', 'VERIFIED', 'ACTIVE', 'EXPIRING', 'MATURED', 'RENEWED', 'RELEASE_REQUESTED', 'RELEASED', 'REJECTED')",
+            name="ck_instruments_status_fsm",
+        ),
+    )

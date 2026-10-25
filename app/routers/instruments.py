@@ -18,6 +18,7 @@ from app.services.submission_service import FDRSubmissionService
 from app.services.document_service import DocumentService, validate_file_content
 from app.services.audit_service import AuditService
 from app.services.clock_service import clock_service
+from app.services.instrument_fsm import get_instrument_timeline
 
 router = APIRouter(tags=["Instruments & Custody Vault"])
 
@@ -225,6 +226,7 @@ def view_institution_instrument_detail(
 
     # Map provenance by field_name for easy template lookups
     prov_map = {p.field_name: p for p in provenance_rows}
+    timeline = get_instrument_timeline(db, instrument)
 
     context = {
         "request": request,
@@ -233,6 +235,7 @@ def view_institution_instrument_detail(
         "instrument": instrument,
         "prov_map": prov_map,
         "documents": documents,
+        "timeline": timeline,
         "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
@@ -333,6 +336,7 @@ def view_staff_instrument_detail(
     provenance_rows = db.query(FieldProvenance).filter(FieldProvenance.instrument_id == instrument.id).all()
     documents = db.query(Document).filter(Document.instrument_id == instrument.id).all()
     prov_map = {p.field_name: p for p in provenance_rows}
+    timeline = get_instrument_timeline(db, instrument)
 
     context = {
         "request": request,
@@ -341,6 +345,7 @@ def view_staff_instrument_detail(
         "instrument": instrument,
         "prov_map": prov_map,
         "documents": documents,
+        "timeline": timeline,
         "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,

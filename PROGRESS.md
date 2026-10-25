@@ -7,9 +7,9 @@
 **Execution Context:** Solo Developer (4 Build Days + 1 Submission Day)  
 **Submission Deadline:** 28 October 2026  
 **Current Phase:** Day 2 — Template Formatting Hardening, Global 500 Handler & Null-Safety (Stage 4.3 Bugfix Complete)  
-**Last Updated:** 2026-10-25  
-**Overall Readiness:** 40% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel, Nullable Migration 0002, AES-256-GCM Envelope Encryption with AAD Document ID Binding, Sharded Storage Vault, Atomic Multi-Table Submission Service, Field Provenance, Scoped Views & Downloads, Submission Form Demo Tools & Scenarios, fpdf2 Specimen PDF Generator, Shared Null-Safe Filters, Global Exception Catch-All 500 Handler, 124 Tests Passing)  
-> **Schedule status:** Tier 1 incomplete at end of Day 2; Stages 5-7 in progress.
+**Last Updated:** 2026-10-26  
+**Overall Readiness:** 50% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel, Nullable Migration 0002, AES-256-GCM Envelope Encryption with AAD Document ID Binding, Sharded Storage Vault, Atomic Multi-Table Submission Service, Field Provenance, Scoped Views & Downloads, Submission Form Demo Tools & Scenarios, fpdf2 Specimen PDF Generator, Shared Null-Safe Filters, Global Exception Catch-All 500 Handler, 11-State Finite State Machine, Database CHECK Constraint ck_instruments_status_fsm, Prior-State Restoration Column, Actor Principal Model, Read-Only Audit Timeline UI, 135 Tests Passing)  
+> **Schedule status:** Tier 1 Stage 5 complete; Stages 6-7 in progress.
 
 ---
 
@@ -23,9 +23,11 @@
 | **Stage 3.1** | Demo Credentials Panel & UI Polish | Done | Triple-gated credentials panel, request-time password interpolation |
 | **Stage 4** | Encrypted Document Vault & FDR Submission | Done | AES-256-GCM envelope encryption, multi-table atomic service |
 | **Stage 4.3** | Null-Safety Hotfix & Global 500 Exception Boundary | Done | Shared template filters, styled 500 handler, 124 tests passing |
-| **Stage 5** | FSM & Status Lifecycle Timeline | Next | 11-state machine, dual release request states, audit trails |
-| **Stage 6** | DiscrepancyEngine & Trust Score Inputs | Planned | DISC-01 to DISC-06, DISC-08, newer-submission flagging for DISC-05 |
+| **Stage 5** | FSM & Status Lifecycle Timeline | Done | 11-state machine, prior-state restore, status CHECK constraint, timeline UI |
+| **Stage 6** | DiscrepancyEngine & Trust Score Inputs | Next | DISC-01 to DISC-06, DISC-08, newer-submission flagging for DISC-05 |
 | **Stage 7** | Scrutiny Workstation Console | Planned | Side-by-side diff review (confirm exact scope with me) |
+
+---
 
 ---
 
@@ -44,7 +46,7 @@
 - [x] Implement `verify_chain(session)` verifying genesis anchor, link continuity, payload match, and entry hash in linear time ($O(n)$).
 - [x] Implement JWT authentication service, password hashing (bcrypt), and FastAPI RBAC dependency interceptor (4 roles).
 - [x] Build FDR Submission endpoint and Jinja2 + HTMX form with **AES-256-GCM envelope encryption** (per-file DEK wrapped by master KEK).
-- [ ] Implement 11-state finite state machine (FSM) validation and non-destructive discrepancy transitions.
+- [x] Implement 11-state finite state machine (FSM) validation and non-destructive discrepancy transitions.
 - [ ] Implement deterministic **`DiscrepancyEngine`** (`DISC-01` to `DISC-06`, `DISC-08`), saving records as `DISCREPANCY_FLAGGED` (with `DISC-05` flagging only newer submissions).
 - [ ] Build Scrutiny Officer workstation console (Jinja2 + HTMX) with status filters and discrepancy review actions.
 
@@ -127,6 +129,11 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 | **DEC-025** | 2026-10-25 | Fictional Seed Data & Copy Neutralization | All institution names ("National Model Institute of Technology", "Demo Institute of Technology"), individual principal/dean names, and bank names neutralized to purely fictional demo entities across seed scripts, auth panel, templates, and README. | Ensures ethical data compliance and prevents impersonating real colleges, banks, or academic officials. |
 | **DEC-026** | 2026-10-25 | UI Neutralization & Production Presentation | Replaced all build-stage notices ("Stage 3 Active", "arrives in Stage 4", etc.) with production-ready status cards and review queues; `/healthz` probe minimized strictly to `{"status": "ok"}`; added regression test asserting zero developmental patterns rendered on any role page. | Delivers a clean, professional production appearance across all workspaces without internal development artifacts. |
 | **DEC-027** | 2026-10-25 | Shared Null-Safe Filters & Global Exception Boundary | Centralized all currency, date, datetime, file size, and string display through shared singleton Jinja2 filters (`format_inr`, `format_date`, `format_datetime`, `format_filesize`, `default_dash`) returning neutral em-dashes for None/blank values. Replaced separate router template instances with the shared singleton. Registered global `@app.exception_handler(Exception)` capturing unhandled Python errors, logging full tracebacks to server logs, and rendering styled 500 HTML without leaking internal traces or stack information. | Eliminates NoneType format crashes on blank instrument fields and guarantees graceful error handling without leaking sensitive details or raw text 500 errors. |
+| **DEC-028** | 2026-10-26 | FSM Central Transitions Matrix | Central static transition mapping `(from_state, to_state) -> TransitionRule` in `app/services/instrument_fsm.py` governing all 11 states with immutable terminal states (`RENEWED`, `RELEASED`, `REJECTED`) and strict self-transition rejection. | Eliminates scattered transition checks, centralizes regulatory edge constraints, and provides a single audit-sealed state change entry point. |
+| **DEC-029** | 2026-10-26 | SYSTEM Actor Principal Model | Unified `Actor` dataclass (`user_id`, `role`, `institution_id`, `is_demo_admin`) with `SYSTEM_ACTOR` singleton for automated background transitions. | Integrates automated scheduler operations and human officer actions into a uniform authorization and cryptographic audit pipeline. |
+| **DEC-030** | 2026-10-26 | Prior-State Release Rejection Restoration | Added nullable `prior_state` column (Migration `0003_instrument_lifecycle_fsm.py`) capturing origin state on entering `RELEASE_REQUESTED`, allowing rejection ONLY back to that state, and clearing it upon exit. | Resolves Known Issue 11: guarantees rejected release requests restore instruments safely to their exact pre-release status (`ACTIVE`, `EXPIRING`, or `MATURED`) rather than a destructive terminal failure. |
+| **DEC-031** | 2026-10-26 | Database Engine FSM Status CHECK Constraint | Enforced `ck_instruments_status_fsm` on `instruments.status` via Migration `0003_instrument_lifecycle_fsm.py` with pre-migration loud validation failure. | Guarantees database integrity at the PostgreSQL storage engine level, preventing any illegal or misspelled state string from persisting. |
+| **DEC-032** | 2026-10-26 | Mandatory Human Justification Boundary | Enforces mandatory, non-blank text justification ($\ge 10$ characters) for human-driven sensitive transitions (`VERIFIED`, `REJECTED`, `RELEASED`, `RELEASE_REQUESTED`, and release-rejection); automated transitions generate descriptive system reasons. | Complies with AICTE regulatory accountability and human-in-the-loop statutory governance mandates. |
 
 ---
 
@@ -166,8 +173,8 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 * **Issue 7 (Bearer API Auth Deferred):** Bearer token header authentication for headless REST clients is deferred to Tier 4; Stage 3 prioritizes browser session cookie auth.
 * **Issue 8 (UTC vs IST Date Boundary):** `ClockService.today()` calculates calendar date in UTC; in India Standard Time (+05:30) near midnight UTC date may differ by 1 day. All database timestamps remain UTC.
 * **Issue 9 (Master Key Rotation Deferred):** Single versioned master key is used for envelope encryption; multi-version master key rotation is deferred to production hardening.
-* **Issue 10 (FSM Transitions & Discrepancy Engine Deferred to Stages 5 & 6):** All newly submitted instruments initialize with status `SUBMITTED` and baseline trust score `20`; 11-state FSM transitions arrive in Stage 5 and automated discrepancy rule flags arrive in Stage 6.
-* **Issue 11 (Release-Rejection Restoration):** Release-rejection workflow must restore the instrument to its prior pre-release state (`ACTIVE`, `EXPIRING`, or `MATURED`) rather than a terminal failed state.
+* **Issue 10 (Discrepancy Engine & Scoring Pending Stage 6):** Newly submitted instruments initialize with status `SUBMITTED` and baseline trust score `20`; automated discrepancy rule flags (`DISC-01` to `DISC-06`, `DISC-08`) and earned trust calculations arrive in Stage 6.
+* **Issue 11 (Resolved - Stage 5):** Release-rejection workflow restores the instrument to its exact prior pre-release state (`ACTIVE`, `EXPIRING`, or `MATURED`) via dedicated `prior_state` column and clears it upon exit.
 * **Issue 12 (Baseline Trust Score):** Trust score currently initializes to a constant baseline of `20`; the explainable earned Trust Score calculator (base + evidence additions - discrepancy deductions) is pending Stage 6.
 * **Issue 13 (Nullable Business Fields):** All instrument business columns are nullable in the database (Migration `0002_nullable_instrument_fields.py`); all current and new code must safely handle `None` values without crashing.
 * **Issue 14 (Demo Tools Gating):** Prototype demo scenario tools and sample PDF generators must remain strictly gated by `DEMO_MODE=true` and non-production environments (`APP_ENV != "production"`).
