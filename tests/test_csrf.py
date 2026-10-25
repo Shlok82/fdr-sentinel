@@ -65,3 +65,42 @@ def test_time_machine_csrf_header_and_form(client: TestClient, make_user, auth_c
         headers={"X-CSRF-Token": csrf, "HX-Request": "true"}
     )
     assert res.status_code == 200
+
+
+def test_csrf_multipart_form_upload(client: TestClient, make_user, sample_institution, auth_client_for):
+    """POST /institution/instruments/new enforces CSRF in multipart form data and headers."""
+    user = make_user("inst.csrf", "INSTITUTION_ADMIN", institution_id=sample_institution.id)
+    _, csrf = auth_client_for(user)
+
+    file_payload = ("test.pdf", b"%PDF-1.4\nTest scan bytes", "application/pdf")
+    form_data = {
+        "fdr_number": "FDR-CSRF-1",
+        "principal_amount": "100000.00",
+    }
+
+    # 1. Missing CSRF in multipart -> 403
+    res = client.post(
+        "/institution/instruments/new",
+        data=form_data,
+        files={"scan_file": file_payload},
+    )
+    assert res.status_code == 403
+
+    # 2. Invalid CSRF token in multipart -> 403
+    bad_data = dict(form_data, csrf_token="invalid_csrf_token")
+    res = client.post(
+        "/institution/instruments/new",
+        data=bad_data,
+        files={"scan_file": file_payload},
+    )
+    assert res.status_code == 403
+
+    # 3. Valid CSRF in form data -> succeeds (303 redirect)
+    good_data = dict(form_data, csrf_token=csrf)
+    res = client.post(
+        "/institution/instruments/new",
+        data=good_data,
+        files={"scan_file": file_payload},
+        follow_redirects=False,
+    )
+    assert res.status_code == 303

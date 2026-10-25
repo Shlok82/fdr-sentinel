@@ -39,7 +39,9 @@ class Settings(BaseSettings):
     TEST_OWNER_DATABASE_URL: str = "postgresql+psycopg://fdr_owner:fdr_owner_dev_password@localhost:5432/fdr_sentinel_test"
     TEST_DATABASE_URL: str = "postgresql+psycopg://fdr_app_user:fdr_app_dev_password@localhost:5432/fdr_sentinel_test"
 
-    UPLOAD_STORAGE_PATH: str = "./storage"
+    UPLOAD_STORAGE_PATH: str = "/app/storage"
+    VAULT_PATH: str = "/app/storage"
+    MAX_UPLOAD_MB: int = 10
 
     # Backwards compatibility alias for ENVIRONMENT
     @property

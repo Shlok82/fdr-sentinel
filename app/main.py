@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from pathlib import Path
 from app.core.config import settings
-from app.routers import health, auth, demo, pages
+from app.routers import health, auth, demo, pages, instruments
 from app.services.clock_service import clock_service
 
 # Initialize FastAPI application
@@ -94,6 +94,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(demo.router)
+app.include_router(instruments.router)
 app.include_router(pages.router)
 
 

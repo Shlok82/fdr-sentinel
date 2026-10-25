@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}Submit New FDR | FDR Sentinel{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <!-- Breadcrumb & Header -->
+    <div>
+        <nav class="flex text-xs text-slate-500 mb-2" aria-label="Breadcrumb">
+            <a href="/institution/instruments" class="hover:text-slate-900 transition">Instruments</a>
+            <span class="mx-2 text-slate-300">/</span>
+            <span class="text-slate-700 font-semibold">New Submission</span>
+        </nav>
+        <div class="bg-white rounded-xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+            <div class="flex items-center space-x-2">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-aicte-50 text-aicte-700 border border-aicte-200">
+                    {{ institution.aicte_permanent_id if institution else "AICTE Institution" }}
+                </span>
+                <span class="text-xs text-slate-400">•</span>
+                <span class="text-xs font-medium text-slate-600">{{ institution.name if institution else "" }}</span>
+            </div>
+            <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight">Submit Security Deposit FDR</h1>
+            <p class="mt-1 text-xs text-slate-500 max-w-2xl">
+                Upload your institutional Fixed Deposit Receipt (FDR) scan and declare instrument attributes for AICTE custody verification.
+            </p>
+        </div>
+    </div>
+
+    <!-- General Error Alert -->
+    {% if errors.general %}
+    <div class="rounded-lg bg-rose-50 border border-rose-200 p-4 text-xs text-rose-800 flex items-start space-x-2" role="alert">
+        <span class="font-bold text-rose-600">Submission Error:</span>
+        <span>{{ errors.general }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Submission Form -->
+    <form action="/institution/instruments/new" method="POST" enctype="multipart/form-data" class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-8" role="form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <!-- Section 1: Instrument & Bank Identification -->
+        <div>
+            <h2 class="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">
+                1. Instrument & Issuing Bank Details
+            </h2>
+            <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- FDR Number -->
+                <div>
+                    <label for="fdr_number" class="block text-xs font-semibold text-slate-700">
+                        FDR / Receipt Number <span class="text-slate-400 font-normal">(as on receipt)</span>
+                    </label>
+                    <input type="text" id="fdr_number" name="fdr_number" value="{{ form_data.fdr_number or '' }}"
+                        placeholder="e.g., FDR-2026-98124"
+                        class="mt-1 block w-full px-3 py-2 border {% if errors.fdr_number %}border-rose-400 bg-rose-50/30{% else %}border-slate-300{% endif %} rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-aicte-500 font-mono">
+                    {% if errors.fdr_number %}
+                    <p class="mt-1 text-[11px] text-rose-600 font-medium">{{ errors.fdr_number }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Issuing Bank Name -->
+                <div>
+                    <label for="bank_name" class="block text-xs font-semibold text-slate-700">
+                        Issuing Bank Name
+                    </label>
+                    <input type="text" id="bank_name" name="bank_name" value="{{ form_data.bank_name or '' }}"
+                        placeholder="e.g., State Bank of India"
+                        class="mt-1 block w-full px-3 py-2 border {% if errors.bank_name %}border-rose-400 bg-rose-50/30{% else %}border-slate-300{% endif %} rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-aicte-500">
+                    {% if errors.bank_name %}
+                    <p class="mt-1 text-[11px] text-rose-600 font-medium">{{ errors.bank_name }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Bank Branch Name -->
+                <div>
+                    <label for="bank_branch" class="block text-xs font-semibold text-slate-700">
+                        Bank Branch Name
+                    </label>
+                    <input type="text" id="bank_branch" name="bank_branch" value="{{ form_data.bank_branch or '' }}"
+                        placeholder="e.g., Connaught Place Branch, New Delhi"
+                        class="mt-1 block w-full px-3 py-2 border {% if errors.bank_branch %}border-rose-400 bg-rose-50/30{% else %}border-slate-300{% endif %} rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-aicte-500">
+                    {% if errors.bank_branch %}
+                    <p class="mt-1 text-[11px] text-rose-600 font-medium">{{ errors.bank_branch }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Branch IFSC Code -->
+                <div>
+                    <label for="ifsc_code" class="block text-xs font-semibold text-slate-700">
+                        Branch IFSC Code <span class="text-slate-400 font-normal">(11 alphanumeric)</span>
+                    </label>
+                    <input type="text" id="ifsc_code" name="ifsc_code" value="{{ form_data.ifsc_code or '' }}"
+                        placeholder="e.g., SBIN0001234" maxlength="11"
+                        class="mt-1 block w-full px-3 py-2 border {% if errors.ifsc_code %}border-rose-400 bg-rose-50/30{% else %}border-slate-300{% endif %} rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-aicte-500 font-mono uppercase">
+                    {% if errors.ifsc_code %}
+                    <p class="mt-1 text-[11px] text-rose-600 font-medium">{{ errors.ifsc_code }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Financial Terms & Dates -->
+        <div>
+            <h2 class="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">
+                2. Deposit Amounts, Rates & Validity Dates
+            </h2>
+            <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <!-- Principal Amount -->
+                <div>
+                    <label for="principal_amount" class="block text-xs font-semibold text-slate-700">
+                        Principal Deposit Amount (₹)
+                    </label>
+                    <input type="text" id="principal_amount" name="principal_amount" value="{{ form_data.principal_amount or '' }}"
+                        placeholder="e.g., 3500000"
+                        class="mt-1 block w-full px-3 py-2 border {% if errors.principal_amount %}border-rose-400 bg-rose-50/30{% else %}border-slate-300{% endif %} rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-aicte-500 font-mono">
+                    {% if errors.principal_amount %}
+                    <p class="mt-1 text-[11px] text-rose-600 font-medium">{{ errors.principal_amount }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Maturity Amount -->
+                <div>
+                    <label for="maturity_amount" class="block text-xs font-semibold text-slate-700">
+                        Maturity Value (₹)
+                    </label>
+                    <input type="text" id="maturity_amount" name="maturity_amount" value="{{ form_data.maturity_amount or '' }}"
+                        placeholder="e.g., 4200000"
+                        class="mt-1 block w-full px-3 py-2 border {% if errors.maturity_amount %}border-rose-400 bg-rose-50/30{% else %}border-slate-300{% endif %} rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-aicte-500 font-mono">
+                    {% if errors.maturity_amount %}
+                    <p class="mt-1 text-[11px] text-rose-600 font-medium">{{ errors.maturity_amount }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Interest Rate Percent -->
+                <div>
+                    <label for="interest_rate_percent" class="block text-xs font-semibold text-slate-700">
+                        Interest Rate (% p.a.)
+                    </label>
+                    <input type="text" id="interest_rate_percent" name="interest_rate_percent" value="{{ form_data.interest_rate_percent or '' }}"
+                        placeholder="e.g., 7.25"
+                        class="mt-1 block w-full px-3 py-2 border {% if errors.interest_rate_percent %}border-rose-400 bg-rose-50/30{% else %}border-slate-300{% endif %} rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-aicte-500 font-mono">
+                    {% if errors.interest_rate_percent %}
+                    <p class="mt-1 text-[11px] text-rose-600 font-medium">{{ errors.interest_rate_percent }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Issue Date -->
+                <div>
+                    <label for="issue_date" class="block text-xs font-semibold text-slate-700">
+                        Deposit Issue Date
+                    </label>
+                    <input type="date" id="issue_date" name="issue_date" value="{{ form_data.issue_date or '' }}"
+                        class="mt-1 block w-full px-3 py-2 border {% if errors.issue_date %}border-rose-400 bg-rose-50/30{% else %}border-slate-300{% endif %} rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-aicte-500 font-mono">
+                    {% if errors.issue_date %}
+                    <p class="mt-1 text-[11px] text-rose-600 font-medium">{{ errors.issue_date }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Maturity Date -->
+                <div>
+                    <label for="maturity_date" class="block text-xs font-semibold text-slate-700">
+                        Maturity Date
+                    </label>
+                    <input type="date" id="maturity_date" name="maturity_date" value="{{ form_data.maturity_date or '' }}"
+                        class="mt-1 block w-full px-3 py-2 border {% if errors.maturity_date %}border-rose-400 bg-rose-50/30{% else %}border-slate-300{% endif %} rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-aicte-500 font-mono">
+                    {% if errors.maturity_date %}
+                    <p class="mt-1 text-[11px] text-rose-600 font-medium">{{ errors.maturity_date }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Tenure Months -->
+                <div>
+                    <label for="tenure_months" class="block text-xs font-semibold text-slate-700">
+                        Tenure (Months)
+                    </label>
+                    <input type="number" id="tenure_months" name="tenure_months" value="{{ form_data.tenure_months or '' }}"
+                        placeholder="e.g., 60" min="0" max="360"
+                        class="mt-1 block w-full px-3 py-2 border {% if errors.tenure_months %}border-rose-400 bg-rose-50/30{% else %}border-slate-300{% endif %} rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-aicte-500 font-mono">
+                    {% if errors.tenure_months %}
+                    <p class="mt-1 text-[11px] text-rose-600 font-medium">{{ errors.tenure_months }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: Joint Holding Mandate -->
+        <div>
+            <h2 class="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">
+                3. Joint Account Mandate
+            </h2>
+            <div class="mt-4">
+                <label for="joint_account_holder" class="block text-xs font-semibold text-slate-700">
+                    Joint Account Holder Clause
+                </label>
+                <input type="text" id="joint_account_holder" name="joint_account_holder" value="{{ form_data.joint_account_holder or '' }}"
+                    placeholder="e.g., Regional Officer, AICTE & Chairman/Secretary, {{ institution.name if institution else 'College' }}"
+                    class="mt-1 block w-full px-3 py-2 border {% if errors.joint_account_holder %}border-rose-400 bg-rose-50/30{% else %}border-slate-300{% endif %} rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-aicte-500">
+                <p class="mt-1 text-[11px] text-slate-400">
+                    Standard AICTE format mandates joint holding between the AICTE Regional Officer and the authorized college representative.
+                </p>
+                {% if errors.joint_account_holder %}
+                <p class="mt-1 text-[11px] text-rose-600 font-medium">{{ errors.joint_account_holder }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Section 4: Document Upload Vault -->
+        <div>
+            <h2 class="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">
+                4. FDR Receipt Scan Document
+            </h2>
+            <div class="mt-4">
+                <label for="scan_file" class="block text-xs font-semibold text-slate-700">
+                    Upload FDR Document <span class="text-rose-500">*</span>
+                </label>
+                <div class="mt-1.5 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed {% if errors.scan_file %}border-rose-300 bg-rose-50/20{% else %}border-slate-300{% endif %} rounded-lg">
+                    <div class="space-y-2 text-center">
+                        <svg class="mx-auto h-10 w-10 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <div class="flex text-xs text-slate-600 justify-center">
+                            <label for="scan_file" class="relative cursor-pointer bg-white rounded-md font-semibold text-aicte-600 hover:text-aicte-500 focus-within:outline-none">
+                                <span>Select document file</span>
+                                <input id="scan_file" name="scan_file" type="file" required accept=".pdf,.png,.jpg,.jpeg" class="sr-only">
+                            </label>
+                        </div>
+                        <p class="text-[11px] text-slate-500">
+                            PDF, PNG, or JPEG up to 10 MB. Verified via magic bytes; stored under AES-256-GCM envelope encryption.
+                        </p>
+                    </div>
+                </div>
+                {% if errors.scan_file %}
+                <p class="mt-1 text-[11px] text-rose-600 font-medium">{{ errors.scan_file }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Form Submit & Cancel Actions -->
+        <div class="pt-4 border-t border-slate-200 flex items-center justify-between">
+            <a href="/institution/instruments" class="text-xs font-semibold text-slate-600 hover:text-slate-900 transition">
+                &larr; Cancel and return
+            </a>
+            <button type="submit"
+                class="inline-flex items-center px-5 py-2.5 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-aicte-600 hover:bg-aicte-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-aicte-500 transition">
+                Submit FDR for AICTE Scrutiny
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

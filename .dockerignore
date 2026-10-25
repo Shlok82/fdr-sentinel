@@ -1,0 +1,19 @@
+# Docker build ignore file
+storage/
+uploads/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.git/
+.gitignore
+.env
+.pytest_cache/
+.coverage
+htmlcov/
+.idea/
+.vscode/

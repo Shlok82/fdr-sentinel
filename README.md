@@ -32,7 +32,7 @@ Technical education institutions seeking approval from the All India Council for
 | **Auth & RBAC Middleware** | 4 discrete roles, JWT sessions, and `is_demo_admin` flag. | **Tier 1** | `Completed (Stage 3)` |
 | **Unified ClockService** | Injected singleton temporal authority for all logic and queries. | **Tier 1** | `Completed (Stage 2)` |
 | **Tamper-Detecting Hash Chain** | SHA-256 canonical JSON chain with DB-level privilege revocation. | **Tier 1** | `Completed (Stage 2)` |
-| **Encrypted Submission Vault** | AES-256-GCM envelope encryption with master KEK. | **Tier 1** | `Planned` |
+| **Encrypted Submission Vault** | AES-256-GCM envelope encryption with master KEK. | **Tier 1** | `Completed (Stage 4)` |
 | **11-State Finite State Machine** | Strict lifecycle transitions and non-destructive discrepancy flagging. | **Tier 1** | `Planned` |
 | **Deterministic Discrepancy Rules** | Core checks (DISC-01 to DISC-06, DISC-08) including duplicate isolation. | **Tier 1** | `Planned` |
 | **Scrutiny Officer Console** | HTMX-powered review workstation with anomaly indicators. | **Tier 1** | `Planned` |

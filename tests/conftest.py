@@ -75,6 +75,7 @@ def clean_database_between_tests():
     """Truncates audit_log, resets clock_state, and cleans transient test data between tests."""
     with test_owner_engine.connect() as conn:
         conn.execute(text("TRUNCATE TABLE audit_log RESTART IDENTITY CASCADE;"))
+        conn.execute(text("TRUNCATE TABLE instruments RESTART IDENTITY CASCADE;"))
         conn.execute(text("TRUNCATE TABLE users CASCADE;"))
         conn.execute(text("TRUNCATE TABLE institutions CASCADE;"))
         conn.execute(text("UPDATE clock_state SET offset_seconds = 0, updated_at = '1970-01-01 00:00:00+00' WHERE id = 1;"))
@@ -86,6 +87,7 @@ def clean_database_between_tests():
 
     with test_owner_engine.connect() as conn:
         conn.execute(text("TRUNCATE TABLE audit_log RESTART IDENTITY CASCADE;"))
+        conn.execute(text("TRUNCATE TABLE instruments RESTART IDENTITY CASCADE;"))
         conn.execute(text("TRUNCATE TABLE users CASCADE;"))
         conn.execute(text("TRUNCATE TABLE institutions CASCADE;"))
         conn.execute(text("UPDATE clock_state SET offset_seconds = 0, updated_at = '1970-01-01 00:00:00+00' WHERE id = 1;"))

@@ -6,9 +6,9 @@
 **Project:** FDR Sentinel (SIH Problem Statement 26265)  
 **Execution Context:** Solo Developer (4 Build Days + 1 Submission Day)  
 **Submission Deadline:** 28 October 2026  
-**Current Phase:** Day 2 — Auth, Roles & UI Shell (Stage 3 & 3.1 Complete)  
+**Current Phase:** Day 2 — Encrypted Document Vault & FDR Submission (Stage 4 Complete)  
 **Last Updated:** 2026-10-25  
-**Overall Readiness:** 45% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel & 79 Tests Passing)
+**Overall Readiness:** 58% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel, Nullable Migration 0002, AES-256-GCM Envelope Encryption with AAD Document ID Binding, Sharded Storage Vault, Atomic Multi-Table Submission Service, Field Provenance, Scoped Views & Downloads, 109 Tests Passing)
 
 ---
 
@@ -26,7 +26,7 @@
 - [x] Implement **Tamper-Detecting SHA-256 Hash-Chained Audit Log** with canonical JSON serialization binding `id`, `event_timestamp`, `entity_type`, `entity_id`, `action`, `actor_user_id`, `actor_role`, and `details`.
 - [x] Implement `verify_chain(session)` verifying genesis anchor, link continuity, payload match, and entry hash in linear time ($O(n)$).
 - [x] Implement JWT authentication service, password hashing (bcrypt), and FastAPI RBAC dependency interceptor (4 roles).
-- [ ] Build FDR Submission endpoint and Jinja2 + HTMX form with **AES-256-GCM envelope encryption** (per-file DEK wrapped by master KEK).
+- [x] Build FDR Submission endpoint and Jinja2 + HTMX form with **AES-256-GCM envelope encryption** (per-file DEK wrapped by master KEK).
 - [ ] Implement 11-state finite state machine (FSM) validation and non-destructive discrepancy transitions.
 - [ ] Implement deterministic **`DiscrepancyEngine`** (`DISC-01` to `DISC-06`, `DISC-08`), saving records as `DISCREPANCY_FLAGGED` (with `DISC-05` flagging only newer submissions).
 - [ ] Build Scrutiny Officer workstation console (Jinja2 + HTMX) with status filters and discrepancy review actions.
@@ -98,6 +98,10 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 | **DEC-015** | 2026-10-25 | Offline Vendored Assets | Local vendored static assets (`htmx.min.js`, `tailwind.min.js`, cropped brand icons). | Ensures 100% offline evaluation capability without external CDN dependencies or render delays. |
 | **DEC-016** | 2026-10-25 | Double-Submit Cookie CSRF | Synchronizer / double-submit CSRF protection on all state-changing endpoints. | Defends against cross-site request forgery across cookie-based session mutations while accommodating HTMX ajax interactions. |
 | **DEC-017** | 2026-10-25 | Demo Credentials Panel Gating | Triple-gated display (`APP_ENV != "production"`, `DEMO_MODE=true`, `DEMO_SHOW_CREDENTIALS=true`) with dynamic request-time password interpolation. | Prevents credential leaks in production or default deployments while offering 1-click "Fill" convenience for jury evaluators during prototype demonstrations. |
+| **DEC-018** | 2026-10-25 | Document Vault Cryptography | AES-256-GCM envelope encryption with per-file 256-bit DEK, 96-bit nonce, wrapped by 256-bit `DOCUMENT_MASTER_KEY` via AES-GCM; document UUID bound as Associated Authenticated Data (AAD) into both payload encryption and DEK wrapping. | Prevents ciphertext swapping across documents and protects vault files at rest. |
+| **DEC-019** | 2026-10-25 | Vault Storage Structure & Sharding | Sharded relative directory paths (`{uuid[:2]}/{uuid[2:4]}/{uuid}.enc`) mounted under persistent Docker volume (`./storage:/app/storage`). | Prevents single-directory inode exhaustion and guarantees document persistence across container rebuilds. |
+| **DEC-020** | 2026-10-25 | Separation of Structural Validation vs Regulatory Scrutiny | FDR submission form validates data structure only (Decimals, valid calendar dates, positive amounts, IFSC regex when non-empty); business defects (inverted dates, expired maturities, underfunding, missing optional fields, duplicate FDR numbers) are saved as `SUBMITTED` for evaluation by `DiscrepancyEngine`. | Preserves realistic institution self-declarations without blocking submissions. |
+| **DEC-021** | 2026-10-25 | Database Schema Flexibility | Migration `0002_nullable_instrument_fields.py` alters all 11 business columns on `instruments` to `nullable=True` with non-unique index on `fdr_number`. | Enables capturing defective and incomplete physical deposit slips in compliance with DISC-01 checks. |
 
 ---
 
@@ -136,3 +140,5 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 * **Issue 6 (Rate-Limiting Deferred):** IP/account rate-limiting on `/login` is deferred to Stage 7 / production hardening; timing-attack mitigation is implemented via constant-time dummy bcrypt.
 * **Issue 7 (Bearer API Auth Deferred):** Bearer token header authentication for headless REST clients is deferred to Tier 4; Stage 3 prioritizes browser session cookie auth.
 * **Issue 8 (UTC vs IST Date Boundary):** `ClockService.today()` calculates calendar date in UTC; in India Standard Time (+05:30) near midnight UTC date may differ by 1 day. All database timestamps remain UTC.
+* **Issue 9 (Master Key Rotation Deferred):** Single versioned master key is used for envelope encryption; multi-version master key rotation is deferred to production hardening.
+* **Issue 10 (FSM Transitions & Discrepancy Engine Deferred to Stages 5 & 6):** All newly submitted instruments initialize with status `SUBMITTED` and baseline trust score `20`; 11-state FSM transitions arrive in Stage 5 and automated discrepancy rule flags arrive in Stage 6.

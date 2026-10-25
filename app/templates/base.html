@@ -71,7 +71,8 @@
                     {% if user %}
                     <nav class="hidden sm:flex items-center space-x-2 text-xs font-medium text-slate-600" aria-label="Main Navigation">
                         {% if user.role == "INSTITUTION_ADMIN" %}
-                        <a href="/institution" class="px-2.5 py-1.5 rounded hover:bg-slate-100 hover:text-slate-900 transition focus:outline-none focus:ring-1 focus:ring-slate-400">Institution Portal</a>
+                        <a href="/institution/instruments" class="px-2.5 py-1.5 rounded hover:bg-slate-100 hover:text-slate-900 transition focus:outline-none focus:ring-1 focus:ring-slate-400">My FDRs</a>
+                        <a href="/institution/instruments/new" class="px-2.5 py-1.5 rounded bg-aicte-50 text-aicte-700 font-semibold hover:bg-aicte-100 transition focus:outline-none focus:ring-1 focus:ring-aicte-400">+ Submit FDR</a>
                         {% elif user.role == "SCRUTINY_OFFICER" %}
                         <a href="/scrutiny" class="px-2.5 py-1.5 rounded hover:bg-slate-100 hover:text-slate-900 transition focus:outline-none focus:ring-1 focus:ring-slate-400">Scrutiny Console</a>
                         {% elif user.role == "APPROVER_AUTHORITY" %}

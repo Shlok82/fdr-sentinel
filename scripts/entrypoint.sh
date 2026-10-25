@@ -37,6 +37,10 @@ echo "Applying database migrations (Alembic)..."
 alembic upgrade head
 echo "Database migrations applied successfully."
 
+# Ensure storage directories exist and are writable
+mkdir -p /app/storage /app/uploads
+chmod -R 777 /app/storage /app/uploads 2>/dev/null || true
+
 # Start the FastAPI application
 echo "Starting FDR Sentinel FastAPI application on port 8000..."
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000
