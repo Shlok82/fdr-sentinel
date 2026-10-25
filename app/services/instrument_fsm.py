@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from datetime import datetime
 from typing import Optional, Dict, Any, Set, Tuple
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.models.instrument import Instrument
@@ -442,7 +442,7 @@ def get_instrument_timeline(session: Session, instrument: Instrument) -> list[Ti
                     timestamp=row_time,
                     action="INSTRUMENT_SUBMITTED",
                     from_state=None,
-                    to_state="SUBMITTED",
+                    to_state=InstrumentState.SUBMITTED.value,
                     actor_role=actor_role,
                     actor_name=actor_name,
                     justification=details.get("justification") or details.get("note") or "Initial FDR deposit submission.",
@@ -462,3 +462,49 @@ def get_instrument_timeline(session: Session, instrument: Instrument) -> list[Ti
             )
 
     return timeline
+
+
+# -----------------------------------------------------------------------------
+# 6. Status Aggregations & Dashboard Counters
+# -----------------------------------------------------------------------------
+
+def compute_status_counts(
+    db: Session,
+    institution_id: Optional[uuid.UUID] = None,
+) -> Dict[str, int]:
+    """Computes exact instrument counts across all 11 FSM states and TOTAL.
+    
+    Args:
+        db: Active SQLAlchemy database session.
+        institution_id: UUID of institution to scope counts. If None, computes
+            unscoped counts across all institutions (for regulatory staff roles).
+            
+    Returns:
+        Dict mapping all 11 InstrumentState values to their count (int >= 0),
+        plus:
+        - "TOTAL": Sum of all instruments in scope.
+        - "OTHER": Count of instruments in states other than SUBMITTED, ACTIVE,
+                   or DISCREPANCY_FLAGGED (for the institution combined card).
+    """
+    query = db.query(Instrument.status, func.count(Instrument.id))
+    if institution_id is not None:
+        query = query.filter(Instrument.institution_id == institution_id)
+
+    grouped = dict(query.group_by(Instrument.status).all())
+
+    # Initialize all 11 states to 0 so every state key is always present
+    counts: Dict[str, int] = {
+        state.value: grouped.get(state.value, 0)
+        for state in InstrumentState
+    }
+
+    total = sum(counts.values())
+    counts["TOTAL"] = total
+
+    # Combined "In progress / other" count: Total minus (Submitted + Active + Flagged)
+    submitted = counts[InstrumentState.SUBMITTED.value]
+    active = counts[InstrumentState.ACTIVE.value]
+    flagged = counts[InstrumentState.DISCREPANCY_FLAGGED.value]
+    counts["OTHER"] = total - (submitted + active + flagged)
+
+    return counts

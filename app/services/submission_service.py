@@ -10,7 +10,7 @@ from app.schemas.instrument import FDRSubmissionForm
 from app.services.document_service import DocumentService, delete_ciphertext_from_vault
 from app.services.audit_service import AuditService
 from app.services.clock_service import clock_service
-from app.services.instrument_fsm import Actor
+from app.services.instrument_fsm import Actor, InstrumentState
 from app.services.discrepancy_engine import run_checks
 
 
@@ -68,7 +68,7 @@ class FDRSubmissionService:
                 maturity_date=form.cleaned_data.get("maturity_date"),
                 tenure_months=form.cleaned_data.get("tenure_months"),
                 joint_account_holder=form.cleaned_data.get("joint_account_holder"),
-                status="SUBMITTED",
+                status=InstrumentState.SUBMITTED.value,
                 previous_instrument_id=None,
                 renewal_sequence=1,
                 trust_score=20,  # Baseline trust floor

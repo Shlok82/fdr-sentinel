@@ -18,7 +18,7 @@ from app.core.discrepancy_config import REQUIRED_DEPOSIT_SLABS, SUSPICIOUS_PDF_G
 from app.services.audit_service import AuditService
 from app.services.clock_service import clock_service
 from app.services.document_service import DocumentService
-from app.services.instrument_fsm import transition, Actor, SYSTEM_ACTOR
+from app.services.instrument_fsm import transition, Actor, SYSTEM_ACTOR, InstrumentState
 
 logger = logging.getLogger(__name__)
 
@@ -615,26 +615,26 @@ def run_checks(
         blocking_codes = sorted([f.rule_code for f in blocking_findings])
         justification_msg = f"Automated discrepancy checks: {', '.join(blocking_codes)}"
 
-        if instrument.status == "SUBMITTED":
+        if instrument.status == InstrumentState.SUBMITTED.value:
             transition(
                 session,
                 instrument.id,
-                "UNDER_SCRUTINY",
+                InstrumentState.UNDER_SCRUTINY.value,
                 SYSTEM_ACTOR,
                 justification=justification_msg,
             )
             transition(
                 session,
                 instrument.id,
-                "DISCREPANCY_FLAGGED",
+                InstrumentState.DISCREPANCY_FLAGGED.value,
                 SYSTEM_ACTOR,
                 justification=f"Blocking discrepancies flagged: {', '.join(blocking_codes)}",
             )
-        elif instrument.status == "UNDER_SCRUTINY":
+        elif instrument.status == InstrumentState.UNDER_SCRUTINY.value:
             transition(
                 session,
                 instrument.id,
-                "DISCREPANCY_FLAGGED",
+                InstrumentState.DISCREPANCY_FLAGGED.value,
                 SYSTEM_ACTOR,
                 justification=f"Blocking discrepancies flagged: {', '.join(blocking_codes)}",
             )

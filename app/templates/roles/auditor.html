@@ -14,6 +14,26 @@
         <h1 class="mt-3 text-2xl font-bold text-slate-900 tracking-tight">{{ role_title }}</h1>
         <p class="mt-2 text-sm text-slate-600 max-w-3xl leading-relaxed">{{ role_description }}</p>
 
+        <!-- Metric counter cards -->
+        <div class="mt-6 pt-6 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div class="p-4 bg-slate-50 rounded-lg border border-slate-200/60">
+                <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Total FDRs</p>
+                <p class="mt-2 text-2xl font-bold text-slate-900" id="counter-total">{{ total_count }}</p>
+            </div>
+            <div class="p-4 bg-emerald-50/60 rounded-lg border border-emerald-100">
+                <p class="text-xs font-medium uppercase tracking-wider text-emerald-700">Active</p>
+                <p class="mt-2 text-2xl font-bold text-emerald-900" id="counter-active">{{ active_count }}</p>
+            </div>
+            <div class="p-4 bg-amber-50/60 rounded-lg border border-amber-100">
+                <p class="text-xs font-medium uppercase tracking-wider text-amber-700">Flagged</p>
+                <p class="mt-2 text-2xl font-bold text-amber-900" id="counter-flagged">{{ flagged_count }}</p>
+            </div>
+            <div class="p-4 bg-slate-100/70 rounded-lg border border-slate-200">
+                <p class="text-xs font-medium uppercase tracking-wider text-slate-700">Released</p>
+                <p class="mt-2 text-2xl font-bold text-slate-900" id="counter-released">{{ released_count }}</p>
+            </div>
+        </div>
+
         <div class="mt-6 border-t border-slate-100 pt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div class="rounded-lg bg-indigo-50 border border-indigo-200 p-4 text-xs text-indigo-900 flex-1">
                 <span class="font-bold text-indigo-700">Audit Verification Available:</span>

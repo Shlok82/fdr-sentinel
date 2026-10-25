@@ -70,15 +70,7 @@
                             {{ inst.maturity_date | format_date }}
                         </td>
                         <td class="py-3.5 px-6">
-                            {% if inst.status == "SUBMITTED" %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                SUBMITTED
-                            </span>
-                            {% elif inst.status == "ACTIVE" %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                ACTIVE
-                            </span>
-                            {% elif inst.status == "DISCREPANCY_FLAGGED" %}
+                            {% if inst.status == "DISCREPANCY_FLAGGED" %}
                             <div class="flex flex-col gap-1 items-start">
                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
                                     DISCREPANCY FLAGGED
@@ -87,9 +79,49 @@
                                     Needs attention
                                 </span>
                             </div>
+                            {% elif inst.status == "SUBMITTED" %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                SUBMITTED
+                            </span>
+                            {% elif inst.status == "UNDER_SCRUTINY" %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                                UNDER SCRUTINY
+                            </span>
+                            {% elif inst.status == "VERIFIED" %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                VERIFIED
+                            </span>
+                            {% elif inst.status == "ACTIVE" %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                ACTIVE
+                            </span>
+                            {% elif inst.status == "EXPIRING" %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-orange-50 text-orange-700 border border-orange-200">
+                                EXPIRING
+                            </span>
+                            {% elif inst.status == "MATURED" %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                                MATURED
+                            </span>
+                            {% elif inst.status == "RENEWED" %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">
+                                RENEWED
+                            </span>
+                            {% elif inst.status == "RELEASE_REQUESTED" %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200">
+                                RELEASE REQUESTED
+                            </span>
+                            {% elif inst.status == "RELEASED" %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-300">
+                                RELEASED
+                            </span>
+                            {% elif inst.status == "REJECTED" %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-800 border border-red-300">
+                                REJECTED
+                            </span>
                             {% else %}
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                                {{ inst.status }}
+                                {{ inst.status | default_dash }}
                             </span>
                             {% endif %}
                         </td>

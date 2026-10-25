@@ -20,7 +20,7 @@ from app.services.submission_service import FDRSubmissionService
 from app.services.document_service import DocumentService, validate_file_content
 from app.services.audit_service import AuditService
 from app.services.clock_service import clock_service
-from app.services.instrument_fsm import get_instrument_timeline
+from app.services.instrument_fsm import get_instrument_timeline, InstrumentState, compute_status_counts, ALL_STATES
 
 router = APIRouter(tags=["Instruments & Custody Vault"])
 
@@ -28,26 +28,29 @@ router = APIRouter(tags=["Instruments & Custody Vault"])
 @router.get("/institution/instruments", response_class=HTMLResponse)
 def list_institution_instruments(
     request: Request,
+    status: Optional[str] = None,
     user: User = Depends(require_roles("INSTITUTION_ADMIN")),
     db: Session = Depends(get_db)
 ):
-    """Lists all FDR instruments belonging strictly to the caller's institution."""
+    """Lists all FDR instruments belonging strictly to the caller's institution, optionally filtered by status."""
     institution = db.query(Institution).filter(Institution.id == user.institution_id).first()
-    # Null-Safety & Query Rule:
-    # Orders by created_at.desc(); any future queries ordering by nullable maturity_date must use nullslast().
-    # All displayed amounts and dates are formatted exclusively through format_inr and format_date in the template.
-    instruments = (
+    query = (
         db.query(Instrument)
         .filter(Instrument.institution_id == user.institution_id)
-        .order_by(Instrument.created_at.desc())
-        .all()
     )
+    if status and status in ALL_STATES:
+        query = query.filter(Instrument.status == status)
+
+    instruments = query.order_by(Instrument.created_at.desc()).all()
+    status_counts = compute_status_counts(db, institution_id=user.institution_id)
 
     context = {
         "request": request,
         "user": user,
         "institution": institution,
         "instruments": instruments,
+        "status_counts": status_counts,
+        "selected_status": status if status in ALL_STATES else None,
         "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,

@@ -25,23 +25,29 @@
         </div>
 
         <!-- Metric counter cards -->
-        <div class="mt-6 pt-6 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="mt-6 pt-6 border-t border-slate-100 grid grid-cols-2 {% if other_count > 0 %}sm:grid-cols-5{% else %}sm:grid-cols-4{% endif %} gap-4">
             <div class="p-4 bg-slate-50 rounded-lg border border-slate-200/60">
                 <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Total FDRs</p>
-                <p class="mt-2 text-2xl font-bold text-slate-900">{{ total_count }}</p>
+                <p class="mt-2 text-2xl font-bold text-slate-900" id="counter-total">{{ total_count }}</p>
             </div>
             <div class="p-4 bg-blue-50/60 rounded-lg border border-blue-100">
                 <p class="text-xs font-medium uppercase tracking-wider text-blue-700">Submitted</p>
-                <p class="mt-2 text-2xl font-bold text-blue-900">{{ submitted_count }}</p>
+                <p class="mt-2 text-2xl font-bold text-blue-900" id="counter-submitted">{{ submitted_count }}</p>
             </div>
             <div class="p-4 bg-emerald-50/60 rounded-lg border border-emerald-100">
                 <p class="text-xs font-medium uppercase tracking-wider text-emerald-700">Active</p>
-                <p class="mt-2 text-2xl font-bold text-emerald-900">{{ active_count }}</p>
+                <p class="mt-2 text-2xl font-bold text-emerald-900" id="counter-active">{{ active_count }}</p>
             </div>
             <div class="p-4 bg-amber-50/60 rounded-lg border border-amber-100">
                 <p class="text-xs font-medium uppercase tracking-wider text-amber-700">Flagged</p>
-                <p class="mt-2 text-2xl font-bold text-amber-900">{{ flagged_count }}</p>
+                <p class="mt-2 text-2xl font-bold text-amber-900" id="counter-flagged">{{ flagged_count }}</p>
             </div>
+            {% if other_count > 0 %}
+            <div class="p-4 bg-purple-50/60 rounded-lg border border-purple-100">
+                <p class="text-xs font-medium uppercase tracking-wider text-purple-700">In progress / other</p>
+                <p class="mt-2 text-2xl font-bold text-purple-900" id="counter-other">{{ other_count }}</p>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -91,11 +97,48 @@
                                     Needs attention
                                 </span>
                             </div>
+                            {% elif inst.status == 'SUBMITTED' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                                SUBMITTED
+                            </span>
+                            {% elif inst.status == 'UNDER_SCRUTINY' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200">
+                                UNDER SCRUTINY
+                            </span>
+                            {% elif inst.status == 'VERIFIED' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-800 border border-indigo-200">
+                                VERIFIED
+                            </span>
+                            {% elif inst.status == 'ACTIVE' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                ACTIVE
+                            </span>
+                            {% elif inst.status == 'EXPIRING' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-orange-50 text-orange-800 border border-orange-200">
+                                EXPIRING
+                            </span>
+                            {% elif inst.status == 'MATURED' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-purple-50 text-purple-800 border border-purple-200">
+                                MATURED
+                            </span>
+                            {% elif inst.status == 'RENEWED' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-teal-50 text-teal-800 border border-teal-200">
+                                RENEWED
+                            </span>
+                            {% elif inst.status == 'RELEASE_REQUESTED' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-yellow-50 text-yellow-800 border border-yellow-200">
+                                RELEASE REQUESTED
+                            </span>
+                            {% elif inst.status == 'RELEASED' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-300">
+                                RELEASED
+                            </span>
+                            {% elif inst.status == 'REJECTED' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-900 border border-red-300">
+                                REJECTED
+                            </span>
                             {% else %}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold
-                                {% if inst.status == 'SUBMITTED' %}bg-blue-100 text-blue-800
-                                {% elif inst.status == 'ACTIVE' %}bg-emerald-100 text-emerald-800
-                                {% else %}bg-slate-100 text-slate-800{% endif %}">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-800">
                                 {{ inst.status | default_dash }}
                             </span>
                             {% endif %}

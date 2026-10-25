@@ -10,6 +10,7 @@ from app.models.user import User
 from app.models.instrument import Instrument
 from app.services.clock_service import clock_service
 from app.services.audit_service import verify_chain
+from app.services.instrument_fsm import InstrumentState, compute_status_counts
 
 router = APIRouter(include_in_schema=False)
 
@@ -73,8 +74,7 @@ def institution_workspace(
     # Query institution instruments.
     # Null-Safety & Aggregate Rules:
     # 1. Orders by created_at.desc(); any query ordering by nullable fields (e.g. maturity_date) must use nullslast().
-    # 2. Status counts evaluate exact string equality; sums or math on nullable amounts (principal_amount, maturity_amount)
-    #    must handle None explicitly (e.g., using COALESCE in SQL or (x or 0) in Python).
+    # 2. Status counts are computed via compute_status_counts using the 11 exact FSM states.
     instruments = (
         db.query(Instrument)
         .filter(Instrument.institution_id == user.institution_id)
@@ -82,10 +82,14 @@ def institution_workspace(
         .all()
     )
     ctx["instruments"] = instruments
-    ctx["total_count"] = len(instruments)
-    ctx["submitted_count"] = sum(1 for inst in instruments if inst.status == "SUBMITTED")
-    ctx["active_count"] = sum(1 for inst in instruments if inst.status == "ACTIVE")
-    ctx["flagged_count"] = sum(1 for inst in instruments if inst.status in ("DISCREPANCY", "FLAGGED"))
+
+    status_counts = compute_status_counts(db, institution_id=user.institution_id)
+    ctx["status_counts"] = status_counts
+    ctx["total_count"] = status_counts["TOTAL"]
+    ctx["submitted_count"] = status_counts[InstrumentState.SUBMITTED.value]
+    ctx["active_count"] = status_counts[InstrumentState.ACTIVE.value]
+    ctx["flagged_count"] = status_counts[InstrumentState.DISCREPANCY_FLAGGED.value]
+    ctx["other_count"] = status_counts["OTHER"]
 
     return templates.TemplateResponse("roles/institution.html", ctx)
 
@@ -93,36 +97,71 @@ def institution_workspace(
 @router.get("/scrutiny", response_class=HTMLResponse)
 def scrutiny_workspace(
     request: Request,
-    user: User = Depends(require_roles("SCRUTINY_OFFICER"))
+    user: User = Depends(require_roles("SCRUTINY_OFFICER")),
+    db: Session = Depends(get_db)
 ):
     """AICTE Scrutiny Officer workstation."""
     ctx = common_context(request, user)
     ctx["role_title"] = "Scrutiny Officer Workstation"
     ctx["role_description"] = "Review incoming FDR submissions, inspect automated discrepancy flags, and verify bank provenance."
+
+    status_counts = compute_status_counts(db, institution_id=None)
+    ctx["status_counts"] = status_counts
+    ctx["total_count"] = status_counts["TOTAL"]
+    ctx["submitted_count"] = status_counts[InstrumentState.SUBMITTED.value]
+    ctx["under_scrutiny_count"] = status_counts[InstrumentState.UNDER_SCRUTINY.value]
+    ctx["flagged_count"] = status_counts[InstrumentState.DISCREPANCY_FLAGGED.value]
+    ctx["verified_count"] = status_counts[InstrumentState.VERIFIED.value]
+    ctx["active_count"] = status_counts[InstrumentState.ACTIVE.value]
+    ctx["other_count"] = status_counts["OTHER"]
+
     return templates.TemplateResponse("roles/scrutiny.html", ctx)
 
 
 @router.get("/approver", response_class=HTMLResponse)
 def approver_workspace(
     request: Request,
-    user: User = Depends(require_roles("APPROVER_AUTHORITY"))
+    user: User = Depends(require_roles("APPROVER_AUTHORITY")),
+    db: Session = Depends(get_db)
 ):
     """Competent Authority release authorization workstation."""
     ctx = common_context(request, user)
     ctx["role_title"] = "Competent Authority Workstation"
     ctx["role_description"] = "Review compliance checklists and issue dual-key cryptographic authorizations for deposit releases."
+
+    status_counts = compute_status_counts(db, institution_id=None)
+    ctx["status_counts"] = status_counts
+    ctx["total_count"] = status_counts["TOTAL"]
+    ctx["release_requested_count"] = status_counts[InstrumentState.RELEASE_REQUESTED.value]
+    ctx["verified_count"] = status_counts[InstrumentState.VERIFIED.value]
+    ctx["active_count"] = status_counts[InstrumentState.ACTIVE.value]
+    ctx["released_count"] = status_counts[InstrumentState.RELEASED.value]
+    ctx["flagged_count"] = status_counts[InstrumentState.DISCREPANCY_FLAGGED.value]
+    ctx["other_count"] = status_counts["OTHER"]
+
     return templates.TemplateResponse("roles/approver.html", ctx)
 
 
 @router.get("/auditor", response_class=HTMLResponse)
 def auditor_workspace(
     request: Request,
-    user: User = Depends(require_roles("AUDITOR"))
+    user: User = Depends(require_roles("AUDITOR")),
+    db: Session = Depends(get_db)
 ):
     """System Auditor workspace."""
     ctx = common_context(request, user)
     ctx["role_title"] = "Regulatory Audit & Vigilance Console"
     ctx["role_description"] = "Inspect the cryptographic SHA-256 audit log hash chain and verify regulatory compliance."
+
+    status_counts = compute_status_counts(db, institution_id=None)
+    ctx["status_counts"] = status_counts
+    ctx["total_count"] = status_counts["TOTAL"]
+    ctx["active_count"] = status_counts[InstrumentState.ACTIVE.value]
+    ctx["flagged_count"] = status_counts[InstrumentState.DISCREPANCY_FLAGGED.value]
+    ctx["released_count"] = status_counts[InstrumentState.RELEASED.value]
+    ctx["submitted_count"] = status_counts[InstrumentState.SUBMITTED.value]
+    ctx["other_count"] = status_counts["OTHER"]
+
     return templates.TemplateResponse("roles/auditor.html", ctx)
 
 
