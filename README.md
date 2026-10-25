@@ -61,69 +61,71 @@ Sections above describe the target design; this table shows what is implemented 
 
 ```mermaid
 graph TD
-    subgraph Users [Client Surfaces]
-        IU[Institution Admin<br/>Browser / Mobile]
-        SO[AICTE Scrutiny Officer<br/>Workstation (planned)]
-        CA[Competent Authority<br/>Dashboard (planned)]
-        AU[Vigilance / Auditor<br/>Console]
+    subgraph Users["Client Surfaces"]
+        IU["Institution Admin<br/>Browser / Mobile"]
+        SO["AICTE Scrutiny Officer<br/>Workstation (planned)"]
+        CA["Competent Authority<br/>Dashboard (planned)"]
+        AU["Vigilance Auditor<br/>Console"]
     end
 
-    subgraph Unified Application [Single FastAPI Server-Rendered Stack]
-        HTTP_Router[HTTP Request Router]
-        Jinja_Views[Jinja2 HTML Templates & HTMX Swaps]
-        Chart_Canvas[Chart.js Maturity Wall Canvas (planned)]
-        API_Endpoints[FastAPI REST API /docs - OpenAPI 3.1.0]
-        RBAC_Middleware[RBAC & JWT Claims Interceptor]
-        Clock[ClockService - Unified Temporal Source]
-        FSM[Instrument FSM - 11-State Lifecycle Engine]
-        DocVault[Document Vault - AES-256-GCM Envelope Encryption]
-        RuleEngine[Deterministic Discrepancy Engine (planned)]
-        TrustScore[Earned Trust Score Calculator (planned)]
-        ProvEngine[Provenance Tracking Subsystem]
-        Chainer[SHA-256 Canonical Hash Logger]
-        Scheduler[APScheduler Single Process (planned)]
+    subgraph APP["Single FastAPI Server-Rendered Stack"]
+        HTTP_Router["HTTP Request Router"]
+        Jinja_Views["Jinja2 Templates and HTMX Swaps"]
+        Chart_Canvas["Chart.js Maturity Wall Canvas (planned)"]
+        API_Endpoints["FastAPI REST API (/docs)"]
+        RBAC_Middleware["RBAC and JWT Claims Interceptor"]
+        Clock["ClockService - Unified Temporal Source"]
+        FSM["Instrument FSM - 11-State Lifecycle Engine"]
+        DocSvc["Document Vault Service"]
+        RuleEngine["Deterministic Discrepancy Engine (planned)"]
+        TrustScore["Earned Trust Score Calculator (planned)"]
+        ProvEngine["Provenance Tracking"]
+        Chainer["SHA-256 Canonical Hash Logger"]
+        Scheduler["APScheduler Single Process (planned)"]
     end
 
-    subgraph Verification [Pluggable Verification Providers (planned)]
-        V_Mock[Mock Bank Provider - Demo (planned)]
-        V_Manual[Manual Officer Confirmation (planned)]
-        V_AA[Account Aggregator Sandbox Stub (planned)]
+    subgraph Verification["Pluggable Verification Providers (planned)"]
+        V_Mock["Mock Bank Provider - Demo"]
+        V_Manual["Manual Officer Confirmation"]
+        V_AA["Account Aggregator Sandbox Stub"]
     end
 
-    subgraph Storage [Persistence Layer]
-        PG[(PostgreSQL 16+<br/>Append-Only Audit Log, Institutions, Instruments)]
-        Vault[(Encrypted Document Vault Storage<br/>Local File Shards + Envelope Encryption)]
+    subgraph Storage["Persistence Layer"]
+        PG[("PostgreSQL 16+<br/>Append-Only Audit Log, Institutions, Instruments")]
+        Vault[("Encrypted Document Vault<br/>AES-256-GCM Envelope Encryption")]
     end
 
-    Users --> HTTP_Router
+    IU --> HTTP_Router
+    SO --> HTTP_Router
+    CA --> HTTP_Router
+    AU --> HTTP_Router
     HTTP_Router --> Jinja_Views
     HTTP_Router --> API_Endpoints
     Jinja_Views --> Chart_Canvas
-
     Jinja_Views --> RBAC_Middleware
     API_Endpoints --> RBAC_Middleware
 
     RBAC_Middleware --> Clock
     RBAC_Middleware --> FSM
-    RBAC_Middleware --> DocVault
+    RBAC_Middleware --> DocSvc
     RBAC_Middleware --> RuleEngine
     RBAC_Middleware --> TrustScore
     RBAC_Middleware --> ProvEngine
     RBAC_Middleware --> Chainer
+    FSM --> Chainer
     Scheduler --> Clock
+    Scheduler --> FSM
     Scheduler --> RuleEngine
     RuleEngine --> V_Mock
     RuleEngine --> V_Manual
     RuleEngine --> V_AA
     Chainer --> PG
-    FSM --> PG
     ProvEngine --> PG
+    FSM --> PG
+    DocSvc --> Vault
     API_Endpoints --> PG
     Jinja_Views --> PG
-    DocVault --> Vault
 ```
-
----
 
 ## 🛠️ Tech Stack
 * **Full-Stack Application:** Single FastAPI application (Python 3.11, Pydantic v2, synchronous SQLAlchemy 2.0 with `psycopg`, PyJWT, Cryptography, Bcrypt) serving both HTML views and REST endpoints.
