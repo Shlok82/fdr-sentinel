@@ -7,7 +7,7 @@
 **Execution Context:** Solo Developer (4 Build Days + 1 Submission Day)  
 **Submission Deadline:** 28 October 2026  
 **Current Phase:** Day 2 — Template Formatting Hardening, Global 500 Handler & Null-Safety (Stage 4.3 Bugfix Complete)  
-**Last Updated:** 2026-10-26  
+**Last Updated:** 2026-10-26 (README refreshed)  
 **Overall Readiness:** 50% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel, Nullable Migration 0002, AES-256-GCM Envelope Encryption with AAD Document ID Binding, Sharded Storage Vault, Atomic Multi-Table Submission Service, Field Provenance, Scoped Views & Downloads, Submission Form Demo Tools & Scenarios, fpdf2 Specimen PDF Generator, Shared Null-Safe Filters, Global Exception Catch-All 500 Handler, 11-State Finite State Machine, Database CHECK Constraint ck_instruments_status_fsm, Prior-State Restoration Column, Actor Principal Model, Read-Only Audit Timeline UI, 135 Tests Passing)  
 > **Schedule status:** Tier 1 Stage 5 complete; Stages 6-7 in progress.
 
