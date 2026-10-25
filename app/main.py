@@ -46,7 +46,12 @@ async def add_security_headers(request: Request, call_next):
 async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
     accept = request.headers.get("accept", "")
     is_htmx = bool(request.headers.get("HX-Request"))
-    is_api = request.url.path.startswith("/api/")
+    is_api = (
+        request.url.path.startswith("/api/")
+        or request.url.path.startswith("/demo/")
+        or request.url.path.startswith("/healthz")
+        or "application/json" in accept
+    )
 
     # For 401 on standard HTML navigation requests, redirect to login
     if exc.status_code == status.HTTP_401_UNAUTHORIZED and not is_api and not is_htmx:

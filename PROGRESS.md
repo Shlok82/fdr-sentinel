@@ -6,9 +6,9 @@
 **Project:** FDR Sentinel (SIH Problem Statement 26265)  
 **Execution Context:** Solo Developer (4 Build Days + 1 Submission Day)  
 **Submission Deadline:** 28 October 2026  
-**Current Phase:** Day 2 — Encrypted Document Vault & FDR Submission (Stage 4 & 4.1 Bugfix Complete)  
+**Current Phase:** Day 2 — Submission Form Demo Tools, Upload UX & UI Neutralization (Stage 4.2 Complete)  
 **Last Updated:** 2026-10-25  
-**Overall Readiness:** 60% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel, Nullable Migration 0002, AES-256-GCM Envelope Encryption with AAD Document ID Binding, Sharded Storage Vault, Atomic Multi-Table Submission Service, Field Provenance, Scoped Views & Downloads, Template Rendering Regression Suite, 111 Tests Passing)
+**Overall Readiness:** 65% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel, Nullable Migration 0002, AES-256-GCM Envelope Encryption with AAD Document ID Binding, Sharded Storage Vault, Atomic Multi-Table Submission Service, Field Provenance, Scoped Views & Downloads, Submission Form Demo Tools & Scenarios, fpdf2 Specimen PDF Generator, Fictional Data Neutralization, Minimal Health Probe, 121 Tests Passing)
 
 ---
 
@@ -103,6 +103,10 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 | **DEC-020** | 2026-10-25 | Separation of Structural Validation vs Regulatory Scrutiny | FDR submission form validates data structure only (Decimals, valid calendar dates, positive amounts, IFSC regex when non-empty); business defects (inverted dates, expired maturities, underfunding, missing optional fields, duplicate FDR numbers) are saved as `SUBMITTED` for evaluation by `DiscrepancyEngine`. | Preserves realistic institution self-declarations without blocking submissions. |
 | **DEC-021** | 2026-10-25 | Database Schema Flexibility | Migration `0002_nullable_instrument_fields.py` alters all 11 business columns on `instruments` to `nullable=True` with non-unique index on `fdr_number`. | Enables capturing defective and incomplete physical deposit slips in compliance with DISC-01 checks. |
 | **DEC-022** | 2026-10-25 | Template Evaluation & Link Generation | Removed literal `{% raw %}` delimiters from document download URLs in `detail.html` and `staff_detail.html`; added universal unrendered template syntax test (`"{{"`/`"{%"`) across all 5 roles. | Ensures clean URL interpolation for UUID path parameters and prevents regression of unrendered Jinja syntax anywhere across the portal. |
+| **DEC-023** | 2026-10-25 | Submission Form Demo Tools & Dynamic Scenario Service | Single source of truth in `app/services/demo_scenarios.py` with pure functions; all scenario dates derive strictly from `clock_service.today()`; `duplicate_number` dynamically binds to most recent instrument in DB or falls back with clear note; clean scenario maturity matches exact Decimal quarterly compounding ($A = P(1 + r/400)^{4t}$). | Eliminates hardcoded test payloads, enables 1-click evaluation by jury, and preserves strict ClockService temporal authority. |
+| **DEC-024** | 2026-10-25 | Synthetic Specimen PDF Generation via `fpdf2` | Lightweight (< 20 KB) pure-Python document generation with diagonal `"SPECIMEN - DEMO ONLY, NOT A REAL INSTRUMENT"` watermark, extractable text layer, structured receipt layout, and Latin-1 safe characters (`-`, `Rs.`). | Avoids heavy C binaries/headless browsers; produces extractable text layer matching form fields for instant evaluation attachments. |
+| **DEC-025** | 2026-10-25 | Fictional Seed Data & Copy Neutralization | All institution names ("National Model Institute of Technology", "Demo Institute of Technology"), individual principal/dean names, and bank names neutralized to purely fictional demo entities across seed scripts, auth panel, templates, and README. | Ensures ethical data compliance and prevents impersonating real colleges, banks, or academic officials. |
+| **DEC-026** | 2026-10-25 | UI Neutralization & Production Presentation | Replaced all build-stage notices ("Stage 3 Active", "arrives in Stage 4", etc.) with production-ready status cards and review queues; `/healthz` probe minimized strictly to `{"status": "ok"}`; added regression test asserting zero developmental patterns rendered on any role page. | Delivers a clean, professional production appearance across all workspaces without internal development artifacts. |
 
 ---
 

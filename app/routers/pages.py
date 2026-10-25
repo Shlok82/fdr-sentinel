@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, get_optional_current_user, require_roles
 from app.models.user import User
+from app.models.instrument import Instrument
 from app.services.clock_service import clock_service
 from app.services.audit_service import verify_chain
 
@@ -62,13 +63,26 @@ def dashboard_redirect(user: User = Depends(get_current_user)):
 @router.get("/institution", response_class=HTMLResponse)
 def institution_workspace(
     request: Request,
-    user: User = Depends(require_roles("INSTITUTION_ADMIN"))
+    user: User = Depends(require_roles("INSTITUTION_ADMIN")),
+    db: Session = Depends(get_db)
 ):
-    """Institution administrator workspace placeholder."""
+    """Institution administrator workspace."""
     ctx = common_context(request, user)
     ctx["role_title"] = "Institution Portal — FDR Custody & Submissions"
-    ctx["role_description"] = "Submit new Fixed Deposit Receipts, track verification status, and initiate renewals/refunds."
-    ctx["stage_note"] = "FDR Ingestion & Discrepancy Engine arrives in Stage 4."
+    ctx["role_description"] = "Submit new Fixed Deposit Receipts, track verification status, and manage deposit custody."
+
+    instruments = (
+        db.query(Instrument)
+        .filter(Instrument.institution_id == user.institution_id)
+        .order_by(Instrument.created_at.desc())
+        .all()
+    )
+    ctx["instruments"] = instruments
+    ctx["total_count"] = len(instruments)
+    ctx["submitted_count"] = sum(1 for inst in instruments if inst.status == "SUBMITTED")
+    ctx["active_count"] = sum(1 for inst in instruments if inst.status == "ACTIVE")
+    ctx["flagged_count"] = sum(1 for inst in instruments if inst.status in ("DISCREPANCY", "FLAGGED"))
+
     return templates.TemplateResponse("roles/institution.html", ctx)
 
 
@@ -77,11 +91,10 @@ def scrutiny_workspace(
     request: Request,
     user: User = Depends(require_roles("SCRUTINY_OFFICER"))
 ):
-    """AICTE Scrutiny Officer workstation placeholder."""
+    """AICTE Scrutiny Officer workstation."""
     ctx = common_context(request, user)
     ctx["role_title"] = "Scrutiny Officer Workstation"
     ctx["role_description"] = "Review incoming FDR submissions, inspect automated discrepancy flags, and verify bank provenance."
-    ctx["stage_note"] = "Scrutiny Console & side-by-side diff viewer arrives in Stage 4."
     return templates.TemplateResponse("roles/scrutiny.html", ctx)
 
 
@@ -90,11 +103,10 @@ def approver_workspace(
     request: Request,
     user: User = Depends(require_roles("APPROVER_AUTHORITY"))
 ):
-    """Competent Authority release authorization workstation placeholder."""
+    """Competent Authority release authorization workstation."""
     ctx = common_context(request, user)
     ctx["role_title"] = "Competent Authority Workstation"
     ctx["role_description"] = "Review compliance checklists and issue dual-key cryptographic authorizations for deposit releases."
-    ctx["stage_note"] = "Dual-Key Release workflow arrives in Stage 5."
     return templates.TemplateResponse("roles/approver.html", ctx)
 
 
@@ -103,11 +115,10 @@ def auditor_workspace(
     request: Request,
     user: User = Depends(require_roles("AUDITOR"))
 ):
-    """System Auditor workspace placeholder."""
+    """System Auditor workspace."""
     ctx = common_context(request, user)
     ctx["role_title"] = "Regulatory Audit & Vigilance Console"
     ctx["role_description"] = "Inspect the cryptographic SHA-256 audit log hash chain and verify regulatory compliance."
-    ctx["stage_note"] = "Full Audit Log Browser arrives in Stage 6."
     return templates.TemplateResponse("roles/auditor.html", ctx)
 
 

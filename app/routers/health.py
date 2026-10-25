@@ -2,9 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.core.database import get_db
-from app.core.config import settings
 from app.schemas.health import HealthResponse
-from app.services.clock_service import clock_service
 
 router = APIRouter(tags=["Health"])
 
@@ -23,19 +21,10 @@ def healthz(db: Session = Depends(get_db)):
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Database returned unexpected response"
             )
-        db_status = "connected"
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Database unreachable: {str(exc)}"
         )
 
-    current_time = clock_service.get_current_time().isoformat()
-    return HealthResponse(
-        status="healthy",
-        database=db_status,
-        app_name="FDR Sentinel",
-        environment=settings.ENVIRONMENT,
-        timestamp=current_time,
-        version="1.0.0"
-    )
+    return HealthResponse(status="ok")

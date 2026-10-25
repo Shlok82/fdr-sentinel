@@ -4,15 +4,17 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, verify_csrf
+from app.core.dependencies import get_current_user, require_roles, verify_csrf
 from app.models.user import User
 from app.services.clock_service import clock_service
+from app.services.demo_scenarios import get_scenario_data
+from app.services.demo_documents import generate_demo_fdr_pdf
 
 templates = Jinja2Templates(directory="app/templates")
-router = APIRouter(prefix="/api/v1/demo", tags=["Demo Time Machine"])
+router = APIRouter(tags=["Demo Tools"])
 
 
-@router.post("/clock", response_class=Response, dependencies=[Depends(verify_csrf)])
+@router.post("/api/v1/demo/clock", response_class=Response, dependencies=[Depends(verify_csrf)])
 def time_machine_clock_control(
     request: Request,
     action: str = Form(...),
@@ -87,3 +89,61 @@ def time_machine_clock_control(
         "current_time": current_time_str,
         "simulated_date": simulated_date_str,
     })
+
+
+@router.get("/demo/fdr-scenarios/{key}")
+def get_demo_scenario(
+    key: str,
+    user: User = Depends(require_roles("INSTITUTION_ADMIN")),
+    db: Session = Depends(get_db)
+):
+    """Returns pre-filled field dictionary for requested prototype evaluation scenario."""
+    if not settings.DEMO_MODE:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Demo scenario endpoints are disabled when DEMO_MODE is false."
+        )
+
+    scenario_data = get_scenario_data(key, db)
+    if not scenario_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Unknown demo scenario key: '{key}'."
+        )
+
+    return JSONResponse(content=scenario_data)
+
+
+@router.get("/demo/fdr-sample/{key}.pdf")
+def get_demo_sample_pdf(
+    key: str,
+    user: User = Depends(require_roles("INSTITUTION_ADMIN")),
+    db: Session = Depends(get_db)
+):
+    """Generates on-the-fly sample PDF matching the requested prototype evaluation scenario."""
+    if not settings.DEMO_MODE:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Demo scenario endpoints are disabled when DEMO_MODE is false."
+        )
+
+    scenario_data = get_scenario_data(key, db)
+    if not scenario_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Unknown demo scenario key: '{key}'."
+        )
+
+    pdf_bytes = generate_demo_fdr_pdf(scenario_data)
+    filename = scenario_data.get("filename", f"sample_{key}.pdf")
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+        }
+    )
+

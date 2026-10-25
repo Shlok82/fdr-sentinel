@@ -49,17 +49,17 @@ def seed_database(db_url: str = None) -> None:
 
         print("Seeding sample institutions...")
         # Institution 1: Western Region
-        inst1 = session.query(Institution).filter_by(aicte_permanent_id="1-10972341").first()
+        inst1 = session.query(Institution).filter(Institution.aicte_permanent_id.in_(["1-DEMO-001", "1-10972341"])).first()
         if not inst1:
             inst1 = Institution(
                 id=uuid.uuid4(),
-                aicte_permanent_id="1-10972341",
-                name="Sardar Patel Institute of Technology",
+                aicte_permanent_id="1-DEMO-001",
+                name="National Model Institute of Technology",
                 region="Western",
                 state="Maharashtra",
-                address="Bhavans Campus, Munshi Nagar, Andheri West, Mumbai 400058",
-                contact_email="principal@spit.ac.in",
-                contact_phone="022-26707440",
+                address="Plot 12, Institutional Area, Sector 5, Pune 411001",
+                contact_email="admin@model-tech.edu",
+                contact_phone="020-25691234",
                 institution_type="Engineering & Technology",
                 created_at=now_ts,
                 updated_at=now_ts,
@@ -77,20 +77,27 @@ def seed_database(db_url: str = None) -> None:
             )
             print(f"  Created: {inst1.name} ({inst1.aicte_permanent_id})")
         else:
-            print(f"  Existing: {inst1.name} ({inst1.aicte_permanent_id})")
+            inst1.aicte_permanent_id = "1-DEMO-001"
+            inst1.name = "National Model Institute of Technology"
+            inst1.address = "Plot 12, Institutional Area, Sector 5, Pune 411001"
+            inst1.contact_email = "admin@model-tech.edu"
+            inst1.contact_phone = "020-25691234"
+            inst1.updated_at = now_ts
+            session.flush()
+            print(f"  Updated/Existing: {inst1.name} ({inst1.aicte_permanent_id})")
 
         # Institution 2: Northern Region (Needed for institution isolation & scoping tests)
-        inst2 = session.query(Institution).filter_by(aicte_permanent_id="1-10984512").first()
+        inst2 = session.query(Institution).filter(Institution.aicte_permanent_id.in_(["1-DEMO-002", "1-10984512"])).first()
         if not inst2:
             inst2 = Institution(
                 id=uuid.uuid4(),
-                aicte_permanent_id="1-10984512",
-                name="Delhi Technological University",
+                aicte_permanent_id="1-DEMO-002",
+                name="Demo Institute of Technology",
                 region="Northern",
                 state="Delhi",
-                address="Shahbad Daulatpur, Main Bawana Road, Delhi 110042",
-                contact_email="admin@dtu.ac.in",
-                contact_phone="011-27871018",
+                address="42 Technology Boulevard, Sector 18, Demo City 110001",
+                contact_email="admin@demo-institute.edu",
+                contact_phone="011-27870000",
                 institution_type="Engineering & Technology",
                 created_at=now_ts,
                 updated_at=now_ts,
@@ -108,22 +115,29 @@ def seed_database(db_url: str = None) -> None:
             )
             print(f"  Created: {inst2.name} ({inst2.aicte_permanent_id})")
         else:
-            print(f"  Existing: {inst2.name} ({inst2.aicte_permanent_id})")
+            inst2.aicte_permanent_id = "1-DEMO-002"
+            inst2.name = "Demo Institute of Technology"
+            inst2.address = "42 Technology Boulevard, Sector 18, Demo City 110001"
+            inst2.contact_email = "admin@demo-institute.edu"
+            inst2.contact_phone = "011-27870000"
+            inst2.updated_at = now_ts
+            session.flush()
+            print(f"  Updated/Existing: {inst2.name} ({inst2.aicte_permanent_id})")
 
         # Users configuration
         users_to_seed = [
             {
                 "username": "inst.admin",
-                "email": "inst.admin@spit.ac.in",
-                "full_name": "Dr. B. N. Chaudhari (Principal, SPIT)",
+                "email": "inst.admin@model-tech.edu",
+                "full_name": "Prof. Demo Principal (Head of Institution)",
                 "role": "INSTITUTION_ADMIN",
                 "institution_id": inst1.id,
                 "is_demo_admin": False,
             },
             {
                 "username": "inst.admin2",
-                "email": "inst.admin2@dtu.ac.in",
-                "full_name": "Prof. Prateek Sharma (Dean, DTU)",
+                "email": "inst.admin2@demo-institute.edu",
+                "full_name": "Prof. Model Dean (Campus Administrator)",
                 "role": "INSTITUTION_ADMIN",
                 "institution_id": inst2.id,
                 "is_demo_admin": False,
@@ -131,7 +145,7 @@ def seed_database(db_url: str = None) -> None:
             {
                 "username": "scrutiny.officer",
                 "email": "scrutiny.officer@aicte-india.org",
-                "full_name": "Dr. Rajesh Sharma (Scrutiny Officer)",
+                "full_name": "AICTE Scrutiny Officer (Bureau of Regulation)",
                 "role": "SCRUTINY_OFFICER",
                 "institution_id": None,
                 "is_demo_admin": False,
@@ -139,7 +153,7 @@ def seed_database(db_url: str = None) -> None:
             {
                 "username": "approver.authority",
                 "email": "approver.authority@aicte-india.org",
-                "full_name": "Prof. T. G. Sitharam (Regulation Bureau Head)",
+                "full_name": "AICTE Competent Authority (Head of Bureau)",
                 "role": "APPROVER_AUTHORITY",
                 "institution_id": None,
                 "is_demo_admin": False,
@@ -147,7 +161,7 @@ def seed_database(db_url: str = None) -> None:
             {
                 "username": "auditor",
                 "email": "auditor@aicte-india.org",
-                "full_name": "Shri S. K. Raman (Vigilance Auditor)",
+                "full_name": "AICTE Vigilance Auditor (Directorate of Vigilance)",
                 "role": "AUDITOR",
                 "institution_id": None,
                 "is_demo_admin": False,
@@ -194,11 +208,14 @@ def seed_database(db_url: str = None) -> None:
                 print(f"  Created user: {user.username} ({user.role})")
             else:
                 user.hashed_password = hashed_pw
+                user.email = udata["email"]
+                user.full_name = udata["full_name"]
+                user.institution_id = udata["institution_id"]
                 user.is_active = True
                 user.is_demo_admin = udata["is_demo_admin"]
                 user.updated_at = now_ts
                 session.flush()
-                print(f"  Updated user credentials: {user.username} ({user.role})")
+                print(f"  Updated user credentials & profile: {user.username} ({user.role})")
 
         session.commit()
         print("Database seeding completed successfully.")

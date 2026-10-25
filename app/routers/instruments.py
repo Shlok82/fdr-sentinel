@@ -69,6 +69,7 @@ def new_instrument_form(
         "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
+        "max_upload_mb": settings.MAX_UPLOAD_MB,
         "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
         "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
     }
@@ -155,6 +156,7 @@ async def submit_instrument_action(
             "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
             "is_simulated": clock_service.is_simulated,
             "demo_mode": settings.DEMO_MODE,
+            "max_upload_mb": settings.MAX_UPLOAD_MB,
             "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
             "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
         }
@@ -182,6 +184,7 @@ async def submit_instrument_action(
             "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
             "is_simulated": clock_service.is_simulated,
             "demo_mode": settings.DEMO_MODE,
+            "max_upload_mb": settings.MAX_UPLOAD_MB,
             "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
             "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
         }

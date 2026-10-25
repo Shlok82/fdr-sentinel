@@ -192,8 +192,8 @@ docker compose exec -e SEED_PASSWORD=<your_seed_password> web python scripts/see
 | `scrutiny.officer` | `SCRUTINY_OFFICER` | AICTE Scrutiny Officer | *[Configured via SEED_PASSWORD in .env]* | Scrutiny review console, discrepancy inspection, audit status-only view |
 | `approver.authority` | `APPROVER_AUTHORITY` | AICTE Approval Bureau Head | *[Configured via SEED_PASSWORD in .env]* | Competent authority workstation, deposit release authorization |
 | `auditor` | `AUDITOR` | Central Vigilance / Chief Auditor | *[Configured via SEED_PASSWORD in .env]* | Cryptographic chain verification, full audit trail inspection |
-| `inst.admin` | `INSTITUTION_ADMIN` | Delhi Technological University | *[Configured via SEED_PASSWORD in .env]* | College FDR portal, submission uploads, status tracking |
-| `inst.admin2` | `INSTITUTION_ADMIN` | Sardar Patel Institute of Technology | *[Configured via SEED_PASSWORD in .env]* | Isolated second institution (tests boundary and isolation) |
+| `inst.admin` | `INSTITUTION_ADMIN` | National Model Institute of Technology | *[Configured via SEED_PASSWORD in .env]* | College FDR portal, submission uploads, status tracking |
+| `inst.admin2` | `INSTITUTION_ADMIN` | Demo Institute of Technology | *[Configured via SEED_PASSWORD in .env]* | Isolated second institution (tests boundary and isolation) |
 
 ### 5. Running the Test Suite
 The automated test suite executes strictly against the isolated test database (`fdr_sentinel_test`), never modifying development records:

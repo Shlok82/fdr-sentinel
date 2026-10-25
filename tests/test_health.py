@@ -21,8 +21,6 @@ def test_healthz_endpoint_with_mocked_db():
         response = client.get("/healthz")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "healthy"
-        assert data["database"] == "connected"
-        assert data["app_name"] == "FDR Sentinel"
+        assert data == {"status": "ok"}
     finally:
         app.dependency_overrides.clear()

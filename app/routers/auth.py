@@ -60,13 +60,13 @@ def get_login_context(
         {
             "username": "inst.admin",
             "role": "INSTITUTION_ADMIN",
-            "institution": "Delhi Technological University",
+            "institution": "National Model Institute of Technology",
             "summary": "Submit FDR, view status, track college deposits",
         },
         {
             "username": "inst.admin2",
             "role": "INSTITUTION_ADMIN",
-            "institution": "Sardar Patel Institute of Technology",
+            "institution": "Demo Institute of Technology",
             "summary": "Second college to test multi-institution isolation",
         },
         {

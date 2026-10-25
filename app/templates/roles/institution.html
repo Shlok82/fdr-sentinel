@@ -4,22 +4,121 @@
 
 {% block content %}
 <div class="space-y-6">
+    <!-- Header card -->
     <div class="bg-white rounded-xl border border-slate-200 p-6 sm:p-8 shadow-sm">
-        <div class="flex items-center space-x-3">
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
-                {{ user.role }}
-            </span>
-            <span class="text-xs text-slate-400">Institutional Session Active</span>
-        </div>
-        <h1 class="mt-3 text-2xl font-bold text-slate-900 tracking-tight">{{ role_title }}</h1>
-        <p class="mt-2 text-sm text-slate-600 max-w-3xl leading-relaxed">{{ role_description }}</p>
-
-        <div class="mt-6 border-t border-slate-100 pt-6">
-            <div class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-xs text-amber-900 flex items-start space-x-3">
-                <span class="font-bold text-amber-700">Stage 3 Active:</span>
-                <span>Authentication and RBAC shell successfully mounted. {{ stage_note }}</span>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <div class="flex items-center space-x-3">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                        {{ user.role }}
+                    </span>
+                    <span class="text-xs text-slate-400">Institutional Session Active</span>
+                </div>
+                <h1 class="mt-3 text-2xl font-bold text-slate-900 tracking-tight">{{ role_title }}</h1>
+                <p class="mt-2 text-sm text-slate-600 max-w-3xl leading-relaxed">{{ role_description }}</p>
+            </div>
+            <div class="flex items-center">
+                <a href="/institution/instruments/new" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-semibold rounded-lg shadow-sm text-white bg-aicte-600 hover:bg-aicte-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-aicte-500 transition">
+                    + Submit New FDR
+                </a>
             </div>
         </div>
+
+        <!-- Metric counter cards -->
+        <div class="mt-6 pt-6 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div class="p-4 bg-slate-50 rounded-lg border border-slate-200/60">
+                <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Total FDRs</p>
+                <p class="mt-2 text-2xl font-bold text-slate-900">{{ total_count }}</p>
+            </div>
+            <div class="p-4 bg-blue-50/60 rounded-lg border border-blue-100">
+                <p class="text-xs font-medium uppercase tracking-wider text-blue-700">Submitted</p>
+                <p class="mt-2 text-2xl font-bold text-blue-900">{{ submitted_count }}</p>
+            </div>
+            <div class="p-4 bg-emerald-50/60 rounded-lg border border-emerald-100">
+                <p class="text-xs font-medium uppercase tracking-wider text-emerald-700">Active</p>
+                <p class="mt-2 text-2xl font-bold text-emerald-900">{{ active_count }}</p>
+            </div>
+            <div class="p-4 bg-amber-50/60 rounded-lg border border-amber-100">
+                <p class="text-xs font-medium uppercase tracking-wider text-amber-700">Flagged</p>
+                <p class="mt-2 text-2xl font-bold text-amber-900">{{ flagged_count }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Submissions table / Empty state -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
+            <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Institution Deposit Submissions</h2>
+            <span class="text-xs text-slate-500">{{ instruments|length }} Record(s)</span>
+        </div>
+
+        {% if instruments %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">FDR Number</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Issuing Bank</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Principal Amount</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Maturity Date</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Submitted On</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-slate-100 text-sm">
+                    {% for inst in instruments %}
+                    <tr class="hover:bg-slate-50/60 transition">
+                        <td class="px-6 py-4 whitespace-nowrap font-mono font-medium text-slate-900">
+                            {{ inst.fdr_number }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-slate-700">
+                            {{ inst.bank_name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-slate-900 font-medium">
+                            ₹{{ "{:,.2f}".format(inst.principal_amount) }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-slate-600">
+                            {{ inst.maturity_date.strftime("%d %b %Y") if inst.maturity_date else "—" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold
+                                {% if inst.status == 'SUBMITTED' %}bg-blue-100 text-blue-800
+                                {% elif inst.status == 'ACTIVE' %}bg-emerald-100 text-emerald-800
+                                {% elif inst.status in ('DISCREPANCY', 'FLAGGED') %}bg-rose-100 text-rose-800
+                                {% else %}bg-slate-100 text-slate-800{% endif %}">
+                                {{ inst.status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-xs text-slate-500">
+                            {{ inst.created_at.strftime("%d %b %Y, %H:%M") if inst.created_at else "—" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-xs font-medium">
+                            <a href="/institution/instruments/{{ inst.id }}" class="text-aicte-600 hover:text-aicte-800 hover:underline">
+                                View Details →
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-12 px-6">
+            <svg class="mx-auto h-12 w-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <h3 class="mt-3 text-base font-semibold text-slate-900">No FDRs submitted yet.</h3>
+            <p class="mt-1 text-sm text-slate-500 max-w-sm mx-auto">
+                Submit your institution's fixed deposit receipt for AICTE regulatory verification and secure custody.
+            </p>
+            <div class="mt-5">
+                <a href="/institution/instruments/new" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-aicte-600 hover:bg-aicte-700 shadow-sm transition">
+                    + Submit New FDR
+                </a>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

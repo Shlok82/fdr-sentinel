@@ -132,3 +132,18 @@ def test_all_role_pages_no_unrendered_template_syntax(
         html = res.text
         assert "{{" not in html, f"Unrendered '{{' found in {url} for role {getattr(user, 'role', 'ANONYMOUS')}"
         assert "{%" not in html, f"Unrendered '{{%' found in {url} for role {getattr(user, 'role', 'ANONYMOUS')}"
+
+        # Assert no leftover development/stage/roadmap strings are rendered
+        assert not re.search(r"stage\s*\d", html, re.IGNORECASE), f"Found 'stage \\d' reference in {url}"
+        assert not re.search(r"arrives in", html, re.IGNORECASE), f"Found 'arrives in' reference in {url}"
+        assert not re.search(r"coming soon", html, re.IGNORECASE), f"Found 'coming soon' reference in {url}"
+        assert not re.search(r"\btodo\b", html, re.IGNORECASE), f"Found 'todo' reference in {url}"
+        assert not re.search(r">[^<]*\bplaceholder\b", html, re.IGNORECASE), f"Found rendered 'placeholder' text in {url}"
+
+
+def test_healthz_endpoint_minimal(client: TestClient):
+    """Health endpoint strictly adheres to minimal contract returning only {'status': 'ok'}."""
+    res = client.get("/healthz")
+    assert res.status_code == 200
+    assert res.json() == {"status": "ok"}
+    assert set(res.json().keys()) == {"status"}

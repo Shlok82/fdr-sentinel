@@ -26,8 +26,9 @@ Pillow==11.0.0
 APScheduler==3.10.4
 requests==2.32.3
 
-# PDF & Text Processing (Primary Text Layer + PyPDF)
+# PDF & Text Processing (Primary Text Layer + PyPDF + FPDF2 Generator)
 pypdf==5.1.0
+fpdf2==2.8.2
 
 # Testing & HTTP Clients
 pytest==8.3.3
