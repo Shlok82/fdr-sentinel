@@ -6,9 +6,9 @@
 **Project:** FDR Sentinel (SIH Problem Statement 26265)  
 **Execution Context:** Solo Developer (4 Build Days + 1 Submission Day)  
 **Submission Deadline:** 28 October 2026  
-**Current Phase:** Day 2 — Encrypted Document Vault & FDR Submission (Stage 4 Complete)  
+**Current Phase:** Day 2 — Encrypted Document Vault & FDR Submission (Stage 4 & 4.1 Bugfix Complete)  
 **Last Updated:** 2026-10-25  
-**Overall Readiness:** 58% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel, Nullable Migration 0002, AES-256-GCM Envelope Encryption with AAD Document ID Binding, Sharded Storage Vault, Atomic Multi-Table Submission Service, Field Provenance, Scoped Views & Downloads, 109 Tests Passing)
+**Overall Readiness:** 60% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel, Nullable Migration 0002, AES-256-GCM Envelope Encryption with AAD Document ID Binding, Sharded Storage Vault, Atomic Multi-Table Submission Service, Field Provenance, Scoped Views & Downloads, Template Rendering Regression Suite, 111 Tests Passing)
 
 ---
 
@@ -102,6 +102,7 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 | **DEC-019** | 2026-10-25 | Vault Storage Structure & Sharding | Sharded relative directory paths (`{uuid[:2]}/{uuid[2:4]}/{uuid}.enc`) mounted under persistent Docker volume (`./storage:/app/storage`). | Prevents single-directory inode exhaustion and guarantees document persistence across container rebuilds. |
 | **DEC-020** | 2026-10-25 | Separation of Structural Validation vs Regulatory Scrutiny | FDR submission form validates data structure only (Decimals, valid calendar dates, positive amounts, IFSC regex when non-empty); business defects (inverted dates, expired maturities, underfunding, missing optional fields, duplicate FDR numbers) are saved as `SUBMITTED` for evaluation by `DiscrepancyEngine`. | Preserves realistic institution self-declarations without blocking submissions. |
 | **DEC-021** | 2026-10-25 | Database Schema Flexibility | Migration `0002_nullable_instrument_fields.py` alters all 11 business columns on `instruments` to `nullable=True` with non-unique index on `fdr_number`. | Enables capturing defective and incomplete physical deposit slips in compliance with DISC-01 checks. |
+| **DEC-022** | 2026-10-25 | Template Evaluation & Link Generation | Removed literal `{% raw %}` delimiters from document download URLs in `detail.html` and `staff_detail.html`; added universal unrendered template syntax test (`"{{"`/`"{%"`) across all 5 roles. | Ensures clean URL interpolation for UUID path parameters and prevents regression of unrendered Jinja syntax anywhere across the portal. |
 
 ---
 
