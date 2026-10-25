@@ -35,13 +35,112 @@
         </div>
     </div>
 
-    <!-- Review Queue / Empty state -->
+    <!-- Review Queue Section -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
-            <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Scrutiny Review Queue</h2>
-            <span class="text-xs text-slate-500">Active Queue</span>
+        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Scrutiny Review Queue</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Filter by lifecycle state or sort by submission and maturity dates</p>
+            </div>
+            <!-- Filter Pills -->
+            <div class="flex flex-wrap items-center gap-1.5 text-xs">
+                <a href="/scrutiny"
+                   class="px-2.5 py-1 rounded-md font-medium transition {% if not selected_status %}bg-aicte-700 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    All
+                </a>
+                <a href="/scrutiny?status=SUBMITTED"
+                   class="px-2.5 py-1 rounded-md font-medium transition {% if selected_status == 'SUBMITTED' %}bg-aicte-700 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    Submitted
+                </a>
+                <a href="/scrutiny?status=UNDER_SCRUTINY"
+                   class="px-2.5 py-1 rounded-md font-medium transition {% if selected_status == 'UNDER_SCRUTINY' %}bg-aicte-700 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    Under Scrutiny
+                </a>
+                <a href="/scrutiny?status=DISCREPANCY_FLAGGED"
+                   class="px-2.5 py-1 rounded-md font-medium transition {% if selected_status == 'DISCREPANCY_FLAGGED' %}bg-aicte-700 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    Flagged
+                </a>
+                <a href="/scrutiny?status=VERIFIED"
+                   class="px-2.5 py-1 rounded-md font-medium transition {% if selected_status == 'VERIFIED' %}bg-aicte-700 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    Verified
+                </a>
+                <a href="/scrutiny?status=ACTIVE"
+                   class="px-2.5 py-1 rounded-md font-medium transition {% if selected_status == 'ACTIVE' %}bg-aicte-700 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    Active
+                </a>
+            </div>
         </div>
 
+        {% if items %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+                <thead class="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider">
+                    <tr>
+                        <th scope="col" class="px-6 py-3">FDR / Institution</th>
+                        <th scope="col" class="px-6 py-3">Status</th>
+                        <th scope="col" class="px-6 py-3">
+                            <a href="/scrutiny?sort=principal_amount&order={% if selected_sort == 'principal_amount' and selected_order == 'asc' %}desc{% else %}asc{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" class="inline-flex items-center space-x-1 hover:text-slate-900">
+                                <span>Principal</span>
+                                <span class="text-slate-400">↕</span>
+                            </a>
+                        </th>
+                        <th scope="col" class="px-6 py-3">
+                            <a href="/scrutiny?sort=maturity_date&order={% if selected_sort == 'maturity_date' and selected_order == 'asc' %}desc{% else %}asc{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" class="inline-flex items-center space-x-1 hover:text-slate-900">
+                                <span>Maturity</span>
+                                <span class="text-slate-400">↕</span>
+                            </a>
+                        </th>
+                        <th scope="col" class="px-6 py-3">Tickets</th>
+                        <th scope="col" class="px-6 py-3 text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 bg-white">
+                    {% for item in items %}
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="px-6 py-4">
+                            <div class="font-bold text-slate-900 font-mono">{{ item.instrument.fdr_number or "Pending" }}</div>
+                            <div class="text-[11px] text-slate-500 mt-0.5">{{ item.institution_name }}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold
+                                {% if item.instrument.status == 'SUBMITTED' %}bg-amber-50 text-amber-800 border border-amber-200
+                                {% elif item.instrument.status == 'UNDER_SCRUTINY' %}bg-sky-50 text-sky-800 border border-sky-200
+                                {% elif item.instrument.status == 'DISCREPANCY_FLAGGED' %}bg-rose-50 text-rose-800 border border-rose-200
+                                {% elif item.instrument.status == 'VERIFIED' %}bg-teal-50 text-teal-800 border border-teal-200
+                                {% elif item.instrument.status == 'ACTIVE' %}bg-emerald-50 text-emerald-800 border border-emerald-200
+                                {% else %}bg-slate-100 text-slate-700 border border-slate-200{% endif %}">
+                                {{ item.instrument.status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 font-mono font-medium text-slate-800">
+                            {{ item.instrument.principal_amount | format_inr }}
+                        </td>
+                        <td class="px-6 py-4 font-mono text-slate-600">
+                            {{ item.instrument.maturity_date | format_date }}
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if item.blocking_count > 0 %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                {{ item.blocking_count }} Blocking
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500">
+                                0 Blocking
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <a href="/instruments/{{ item.instrument.id }}"
+                               class="inline-flex items-center px-3 py-1 bg-aicte-50 text-aicte-700 hover:bg-aicte-100 hover:text-aicte-800 font-semibold rounded text-xs transition">
+                                Review Case &rarr;
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
         <div class="text-center py-12 px-6">
             <svg class="mx-auto h-12 w-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -51,6 +150,7 @@
                 Incoming FDR submissions and discrepancy notifications will populate this queue automatically.
             </p>
         </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

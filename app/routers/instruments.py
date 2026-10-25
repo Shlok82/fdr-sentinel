@@ -14,13 +14,30 @@ from app.models.instrument import Instrument
 from app.models.document import Document
 from app.models.provenance import FieldProvenance
 from app.models.discrepancy import DiscrepancyTicket
+from app.models.scrutiny import ScrutinyNote
+from app.models.verification import VerificationRecord
 from app.models.audit import AuditLog
 from app.schemas.instrument import FDRSubmissionForm
 from app.services.submission_service import FDRSubmissionService
 from app.services.document_service import DocumentService, validate_file_content
 from app.services.audit_service import AuditService
 from app.services.clock_service import clock_service
-from app.services.instrument_fsm import get_instrument_timeline, InstrumentState, compute_status_counts, ALL_STATES
+from app.services.instrument_fsm import (
+    get_instrument_timeline,
+    InstrumentState,
+    compute_status_counts,
+    ALL_STATES,
+    TERMINAL_STATES,
+)
+from app.services.verification.mock_bank import MockFailureMode
+from app.services.scrutiny_service import (
+    ScrutinyService,
+    ScrutinyError,
+    ScrutinyGuardError,
+    ScrutinyRoleError,
+    StaleStateError,
+    JustificationError,
+)
 
 router = APIRouter(tags=["Instruments & Custody Vault"])
 
@@ -329,17 +346,18 @@ def download_institution_document(
 
 
 # -----------------------------------------------------------------------------
-# Staff Routes: Read-only inspection and download for AICTE Officers & Auditors
+# Staff Routes: Case Page, Review Actions, and Document Inspection
 # -----------------------------------------------------------------------------
 
-@router.get("/instruments/{instrument_id}", response_class=HTMLResponse)
-def view_staff_instrument_detail(
+def _render_staff_case_page(
     request: Request,
     instrument_id: uuid.UUID,
-    user: User = Depends(require_roles("SCRUTINY_OFFICER", "APPROVER_AUTHORITY", "AUDITOR")),
-    db: Session = Depends(get_db)
-):
-    """Displays AICTE-wide read-only view of instrument for scrutiny, approver, and auditor roles."""
+    user: User,
+    db: Session,
+    action_error: Optional[str] = None,
+    action_success: Optional[str] = None,
+    status_code: int = 200,
+) -> HTMLResponse:
     instrument = db.query(Instrument).filter(Instrument.id == instrument_id).first()
     if not instrument:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instrument not found.")
@@ -356,6 +374,34 @@ def view_staff_instrument_detail(
         .all()
     )
 
+    scrutiny_notes = (
+        db.query(ScrutinyNote)
+        .filter(ScrutinyNote.instrument_id == instrument.id)
+        .order_by(ScrutinyNote.created_at.desc())
+        .all()
+    )
+
+    verification_records = (
+        db.query(VerificationRecord)
+        .filter(VerificationRecord.instrument_id == instrument.id)
+        .order_by(VerificationRecord.executed_at.desc(), VerificationRecord.id.desc())
+        .all()
+    )
+
+    audit_events = (
+        db.query(AuditLog)
+        .filter(AuditLog.entity_type == "INSTRUMENT", AuditLog.entity_id == instrument.id)
+        .order_by(AuditLog.id.desc())
+        .all()
+    )
+
+    officer_ids = {n.officer_id for n in scrutiny_notes if n.officer_id}
+    officer_ids.update({a.actor_user_id for a in audit_events if a.actor_user_id})
+    user_map = {}
+    if officer_ids:
+        users = db.query(User).filter(User.id.in_(officer_ids)).all()
+        user_map = {u.id: u.username for u in users}
+
     latest_check_run = (
         db.query(AuditLog)
         .filter(
@@ -370,6 +416,54 @@ def view_staff_instrument_detail(
     if latest_check_run and latest_check_run.canonical_payload:
         not_evaluated = latest_check_run.canonical_payload.get("details", {}).get("not_evaluated", {})
 
+    is_demo_admin = getattr(user, "is_demo_admin", False)
+
+    # Permission flags for action panel
+    can_start_scrutiny = (
+        user.role == "SCRUTINY_OFFICER"
+        and instrument.status == InstrumentState.SUBMITTED.value
+        and not is_demo_admin
+    )
+    can_verify_mock = (
+        user.role == "SCRUTINY_OFFICER"
+        and instrument.status == InstrumentState.UNDER_SCRUTINY.value
+        and settings.DEMO_MODE
+        and settings.APP_ENV != "production"
+        and not is_demo_admin
+    )
+    can_verify_manual = (
+        user.role == "SCRUTINY_OFFICER"
+        and instrument.status == InstrumentState.UNDER_SCRUTINY.value
+        and not is_demo_admin
+    )
+    can_add_note = (
+        user.role == "SCRUTINY_OFFICER"
+        and instrument.status not in TERMINAL_STATES
+        and not is_demo_admin
+    )
+    can_flag = (
+        user.role == "SCRUTINY_OFFICER"
+        and instrument.status == InstrumentState.UNDER_SCRUTINY.value
+        and not is_demo_admin
+    )
+    can_verify = (
+        user.role == "SCRUTINY_OFFICER"
+        and instrument.status == InstrumentState.UNDER_SCRUTINY.value
+        and not is_demo_admin
+    )
+    can_activate = (
+        user.role in ("SCRUTINY_OFFICER", "APPROVER_AUTHORITY")
+        and instrument.status == InstrumentState.VERIFIED.value
+        and not is_demo_admin
+    )
+    can_reject = (
+        user.role == "APPROVER_AUTHORITY"
+        and instrument.status in (InstrumentState.UNDER_SCRUTINY.value, InstrumentState.DISCREPANCY_FLAGGED.value)
+        and not is_demo_admin
+    )
+
+    has_rejection_recommendation = any(n.action_recommended == "REJECT" for n in scrutiny_notes)
+
     context = {
         "request": request,
         "user": user,
@@ -380,13 +474,236 @@ def view_staff_instrument_detail(
         "timeline": timeline,
         "tickets": tickets,
         "not_evaluated": not_evaluated,
+        "scrutiny_notes": scrutiny_notes,
+        "verification_records": verification_records,
+        "audit_events": audit_events,
+        "user_map": user_map,
+        "can_start_scrutiny": can_start_scrutiny,
+        "can_verify_mock": can_verify_mock,
+        "can_verify_manual": can_verify_manual,
+        "can_add_note": can_add_note,
+        "can_flag": can_flag,
+        "can_verify": can_verify,
+        "can_activate": can_activate,
+        "can_reject": can_reject,
+        "has_rejection_recommendation": has_rejection_recommendation,
+        "mock_failure_modes": [m.value for m in MockFailureMode],
+        "action_error": action_error,
+        "action_success": action_success,
         "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
         "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
         "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
     }
-    return templates.TemplateResponse("instruments/staff_detail.html", context)
+    return templates.TemplateResponse("instruments/staff_detail.html", context, status_code=status_code)
+
+
+def _action_success_response(request: Request, instrument_id: uuid.UUID, message: str) -> Response:
+    if request.headers.get("HX-Request") == "true":
+        return Response(
+            content=f'<div class="rounded-lg bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-800 font-medium" role="alert" aria-live="polite">✓ {message}</div>',
+            media_type="text/html",
+            headers={"HX-Refresh": "true"},
+        )
+    return RedirectResponse(
+        url=f"/instruments/{instrument_id}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.get("/instruments/{instrument_id}", response_class=HTMLResponse)
+def view_staff_instrument_detail(
+    request: Request,
+    instrument_id: uuid.UUID,
+    user: User = Depends(require_roles("SCRUTINY_OFFICER", "APPROVER_AUTHORITY", "AUDITOR")),
+    db: Session = Depends(get_db)
+):
+    """Displays AICTE-wide read-only view of instrument for scrutiny, approver, and auditor roles."""
+    return _render_staff_case_page(request, instrument_id, user, db)
+
+
+@router.post("/instruments/{instrument_id}/actions/start-scrutiny", dependencies=[Depends(verify_csrf)])
+def action_start_scrutiny(
+    request: Request,
+    instrument_id: uuid.UUID,
+    justification: Optional[str] = Form(None),
+    user: User = Depends(require_roles("SCRUTINY_OFFICER")),
+    db: Session = Depends(get_db),
+):
+    if getattr(user, "is_demo_admin", False):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Demo Admin has read-only access to scrutiny cases.")
+    client_ip = get_client_ip(request)
+    try:
+        ScrutinyService.start_scrutiny(db, instrument_id, user, justification, actor_ip=client_ip)
+        db.commit()
+        return _action_success_response(request, instrument_id, "Document scrutiny formally initiated.")
+    except (ScrutinyError, ValueError) as exc:
+        db.rollback()
+        return _render_staff_case_page(request, instrument_id, user, db, action_error=str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+
+@router.post("/instruments/{instrument_id}/actions/mock-verify", dependencies=[Depends(verify_csrf)])
+def action_mock_verify(
+    request: Request,
+    instrument_id: uuid.UUID,
+    failure_mode: str = Form("NONE"),
+    user: User = Depends(require_roles("SCRUTINY_OFFICER")),
+    db: Session = Depends(get_db),
+):
+    if getattr(user, "is_demo_admin", False):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Demo Admin has read-only access to scrutiny cases.")
+    client_ip = get_client_ip(request)
+    try:
+        mode = MockFailureMode(failure_mode) if failure_mode in MockFailureMode.__members__ else MockFailureMode.NONE
+        rec, res = ScrutinyService.run_mock_verification(db, instrument_id, user, mode, actor_ip=client_ip)
+        db.commit()
+        msg = "Mock CBS verification completed successfully." if res.is_verified else "Mock CBS verification reported discrepancies."
+        return _action_success_response(request, instrument_id, msg)
+    except (ScrutinyError, ValueError, RuntimeError) as exc:
+        db.rollback()
+        return _render_staff_case_page(request, instrument_id, user, db, action_error=str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+
+@router.post("/instruments/{instrument_id}/actions/manual-verify", dependencies=[Depends(verify_csrf)])
+async def action_manual_verify(
+    request: Request,
+    instrument_id: uuid.UUID,
+    letter_file: Optional[UploadFile] = File(None),
+    confirmation_file: Optional[UploadFile] = File(None),
+    reference_number: str = Form(...),
+    memo: str = Form(...),
+    user: User = Depends(require_roles("SCRUTINY_OFFICER")),
+    db: Session = Depends(get_db),
+):
+    if getattr(user, "is_demo_admin", False):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Demo Admin has read-only access to scrutiny cases.")
+    client_ip = get_client_ip(request)
+    upload = letter_file or confirmation_file
+    if not upload:
+        return _render_staff_case_page(request, instrument_id, user, db, action_error="Confirmation letter file is required.", status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+    file_bytes = await upload.read()
+    file_name = upload.filename or "confirmation.pdf"
+    try:
+        ScrutinyService.record_manual_confirmation(
+            db, instrument_id, user, file_bytes, file_name, reference_number, memo, actor_ip=client_ip
+        )
+        db.commit()
+        return _action_success_response(request, instrument_id, "Bank confirmation letter encrypted and recorded successfully.")
+    except (ScrutinyError, ValueError) as exc:
+        db.rollback()
+        return _render_staff_case_page(request, instrument_id, user, db, action_error=str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+
+@router.post("/instruments/{instrument_id}/actions/add-note", dependencies=[Depends(verify_csrf)])
+def action_add_note(
+    request: Request,
+    instrument_id: uuid.UUID,
+    note_text: str = Form(...),
+    action_recommended: str = Form("CLEAR"),
+    user: User = Depends(require_roles("SCRUTINY_OFFICER")),
+    db: Session = Depends(get_db),
+):
+    if getattr(user, "is_demo_admin", False):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Demo Admin has read-only access to scrutiny cases.")
+    client_ip = get_client_ip(request)
+    try:
+        ScrutinyService.add_scrutiny_note(db, instrument_id, user, note_text, action_recommended, actor_ip=client_ip)
+        db.commit()
+        return _action_success_response(request, instrument_id, "Scrutiny note recorded.")
+    except (ScrutinyError, ValueError) as exc:
+        db.rollback()
+        return _render_staff_case_page(request, instrument_id, user, db, action_error=str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+
+@router.post("/instruments/{instrument_id}/actions/flag-discrepancy", dependencies=[Depends(verify_csrf)])
+def action_flag_discrepancy(
+    request: Request,
+    instrument_id: uuid.UUID,
+    institution_message: Optional[str] = Form(None),
+    internal_justification: Optional[str] = Form(None),
+    reason: Optional[str] = Form(None),
+    user: User = Depends(require_roles("SCRUTINY_OFFICER")),
+    db: Session = Depends(get_db),
+):
+    if getattr(user, "is_demo_admin", False):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Demo Admin has read-only access to scrutiny cases.")
+    client_ip = get_client_ip(request)
+    try:
+        ScrutinyService.flag_discrepancy(
+            db=db,
+            instrument_id=instrument_id,
+            user=user,
+            institution_message=institution_message,
+            internal_justification=internal_justification,
+            reason=reason,
+            actor_ip=client_ip,
+        )
+        db.commit()
+        return _action_success_response(request, instrument_id, "Discrepancy formally flagged. Instrument status updated.")
+    except (ScrutinyError, ValueError) as exc:
+        db.rollback()
+        return _render_staff_case_page(request, instrument_id, user, db, action_error=str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+
+@router.post("/instruments/{instrument_id}/actions/verify", dependencies=[Depends(verify_csrf)])
+def action_verify(
+    request: Request,
+    instrument_id: uuid.UUID,
+    justification: Optional[str] = Form(None),
+    user: User = Depends(require_roles("SCRUTINY_OFFICER")),
+    db: Session = Depends(get_db),
+):
+    if getattr(user, "is_demo_admin", False):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Demo Admin has read-only access to scrutiny cases.")
+    client_ip = get_client_ip(request)
+    try:
+        ScrutinyService.verify_instrument(db, instrument_id, user, justification, actor_ip=client_ip)
+        db.commit()
+        return _action_success_response(request, instrument_id, "Instrument formally verified.")
+    except (ScrutinyError, ValueError) as exc:
+        db.rollback()
+        return _render_staff_case_page(request, instrument_id, user, db, action_error=str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+
+@router.post("/instruments/{instrument_id}/actions/activate", dependencies=[Depends(verify_csrf)])
+def action_activate(
+    request: Request,
+    instrument_id: uuid.UUID,
+    justification: Optional[str] = Form(None),
+    user: User = Depends(require_roles("SCRUTINY_OFFICER", "APPROVER_AUTHORITY")),
+    db: Session = Depends(get_db),
+):
+    if getattr(user, "is_demo_admin", False):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Demo Admin has read-only access to scrutiny cases.")
+    client_ip = get_client_ip(request)
+    try:
+        ScrutinyService.activate_instrument(db, instrument_id, user, justification, actor_ip=client_ip)
+        db.commit()
+        return _action_success_response(request, instrument_id, "Deposit activated and committed into AICTE custody.")
+    except (ScrutinyError, ValueError) as exc:
+        db.rollback()
+        return _render_staff_case_page(request, instrument_id, user, db, action_error=str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+
+@router.post("/instruments/{instrument_id}/actions/reject", dependencies=[Depends(verify_csrf)])
+def action_reject(
+    request: Request,
+    instrument_id: uuid.UUID,
+    justification: str = Form(...),
+    user: User = Depends(require_roles("APPROVER_AUTHORITY")),
+    db: Session = Depends(get_db),
+):
+    if getattr(user, "is_demo_admin", False):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Demo Admin has read-only access to scrutiny cases.")
+    client_ip = get_client_ip(request)
+    try:
+        ScrutinyService.reject_instrument(db, instrument_id, user, justification, actor_ip=client_ip)
+        db.commit()
+        return _action_success_response(request, instrument_id, "Instrument formally rejected by Competent Authority.")
+    except (ScrutinyError, ValueError) as exc:
+        db.rollback()
+        return _render_staff_case_page(request, instrument_id, user, db, action_error=str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 @router.get("/instruments/{instrument_id}/documents/{document_id}/download")

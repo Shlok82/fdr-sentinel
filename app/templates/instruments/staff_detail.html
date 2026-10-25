@@ -4,6 +4,45 @@
 
 {% block content %}
 <div class="max-w-5xl mx-auto space-y-6">
+
+    <!-- Flash Error / Success Notifications -->
+    {% if action_error %}
+    <div class="rounded-xl bg-rose-50 border border-rose-200 p-4 text-sm text-rose-800 font-medium flex items-center space-x-2 shadow-sm" role="alert" aria-live="polite">
+        <svg class="w-5 h-5 text-rose-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        <span>{{ action_error }}</span>
+    </div>
+    {% endif %}
+
+    {% if action_success %}
+    <div class="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-800 font-medium flex items-center space-x-2 shadow-sm" role="alert" aria-live="polite">
+        <svg class="w-5 h-5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        <span>{{ action_success }}</span>
+    </div>
+    {% endif %}
+
+    {% if has_rejection_recommendation and user.role == "APPROVER_AUTHORITY" %}
+    <div class="rounded-xl bg-rose-50 border-2 border-rose-300 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="flex items-center space-x-3">
+            <div class="p-2 bg-rose-100 rounded-lg text-rose-700">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="text-sm font-bold text-rose-900">Officer Recommended Rejection</h3>
+                <p class="text-xs text-rose-700 mt-0.5">A Scrutiny Officer has reviewed this case and advised formal rejection with justification on record.</p>
+            </div>
+        </div>
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-rose-200 text-rose-900">
+            Action Recommended: REJECT
+        </span>
+    </div>
+    {% endif %}
+
     <!-- Staff Header Banner -->
     <div class="bg-white rounded-xl border border-slate-200 p-6 sm:p-8 shadow-sm">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -122,6 +161,232 @@
         </div>
     </div>
 
+    <!-- Officer / Authority Action Panel -->
+    {% if can_start_scrutiny or can_verify_mock or can_verify_manual or can_add_note or can_flag or can_verify or can_activate or can_reject %}
+    <div class="bg-white rounded-xl border-2 border-aicte-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200 bg-aicte-50/50 flex justify-between items-center">
+            <div>
+                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Custody Workflow Actions</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Authorised operations for {{ user.role }} on this instrument</p>
+            </div>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded bg-white border border-aicte-300 text-aicte-800">
+                State: {{ instrument.status }}
+            </span>
+        </div>
+
+        <div class="p-6 space-y-6">
+            <!-- 1. Start Scrutiny -->
+            {% if can_start_scrutiny %}
+            <div class="p-4 bg-slate-50 rounded-lg border border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800">Initiate Custody Scrutiny</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Transitions FDR from SUBMITTED to UNDER_SCRUTINY and assigns reviewer.</p>
+                </div>
+                <form method="POST" action="/instruments/{{ instrument.id }}/actions/start-scrutiny">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+                    <button type="submit"
+                            class="px-4 py-2 bg-aicte-700 hover:bg-aicte-800 text-white font-semibold text-xs rounded-lg shadow-sm transition">
+                        Start Scrutiny Process
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+
+            <!-- 2. Bank Verification Providers (Mock and Manual) -->
+            {% if can_verify_mock or can_verify_manual %}
+            <div class="space-y-4">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600">Bank Verification Providers</h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Mock Bank API (Demo Mode Only) -->
+                    {% if can_verify_mock and demo_mode %}
+                    <div class="p-4 bg-blue-50/50 rounded-lg border border-blue-200 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-xs font-bold text-blue-900">Direct CBS/API Simulation</h4>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 border border-blue-300">
+                                    Demo Mode
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-600 mt-1">
+                                Simulates an instant direct API check against the issuing core banking server.
+                            </p>
+                        </div>
+
+                        <form method="POST" action="/instruments/{{ instrument.id }}/actions/mock-verify" class="mt-4 space-y-3">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+                            <div>
+                                <label for="failure_mode" class="block text-[11px] font-semibold text-slate-700">Simulated Response Mode</label>
+                                <select id="failure_mode" name="failure_mode" class="mt-1 w-full text-xs rounded-md border-slate-300 bg-white py-1.5 px-2 text-slate-800 focus:border-aicte-500 focus:ring-aicte-500">
+                                    {% for mode in mock_failure_modes %}
+                                    <option value="{{ mode }}">{{ mode }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <button type="submit"
+                                    class="w-full px-3 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs rounded-lg shadow-sm transition">
+                                Run Mock Bank Verification
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+
+                    <!-- Manual Bank Letter Upload -->
+                    {% if can_verify_manual %}
+                    <div class="p-4 bg-emerald-50/50 rounded-lg border border-emerald-200 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-xs font-bold text-emerald-900">Manual Confirmation Letter</h4>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    Vault Stored
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-600 mt-1">
+                                Record written bank verification letter with official branch reference number.
+                            </p>
+                        </div>
+
+                        <form method="POST" action="/instruments/{{ instrument.id }}/actions/manual-verify" enctype="multipart/form-data" class="mt-4 space-y-3">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+                            <div>
+                                <label for="reference_number" class="block text-[11px] font-semibold text-slate-700">Letter Ref Number *</label>
+                                <input type="text" id="reference_number" name="reference_number" required placeholder="e.g. SBI/RO/2026/8941"
+                                       class="mt-1 w-full text-xs rounded-md border-slate-300 bg-white py-1.5 px-2 text-slate-800 focus:border-emerald-500 focus:ring-emerald-500"/>
+                            </div>
+                            <div>
+                                <label for="memo" class="block text-[11px] font-semibold text-slate-700">Verification Memo *</label>
+                                <textarea id="memo" name="memo" rows="2" required placeholder="Officer verification remarks, branch contact verified..."
+                                          class="mt-1 w-full text-xs rounded-md border-slate-300 bg-white py-1.5 px-2 text-slate-800 focus:border-emerald-500 focus:ring-emerald-500"></textarea>
+                            </div>
+                            <div>
+                                <label for="letter_file" class="block text-[11px] font-semibold text-slate-700">Confirmation Letter Scan (PDF/PNG/JPEG) *</label>
+                                <input type="file" id="letter_file" name="letter_file" accept=".pdf,.png,.jpg,.jpeg" required
+                                       class="mt-1 block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200"/>
+                            </div>
+                            <button type="submit"
+                                    class="w-full px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-lg shadow-sm transition">
+                                Upload & Confirm Verification
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 3. Officer Flag / Note / Verification -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Add Scrutiny Note -->
+                {% if can_add_note %}
+                <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                    <h4 class="text-xs font-bold text-slate-800">Add Scrutiny Note</h4>
+                    <p class="text-xs text-slate-500 mt-0.5">Attach finding notes or recommendations to the permanent audit trail.</p>
+                    <form method="POST" action="/instruments/{{ instrument.id }}/actions/add-note" class="mt-3 space-y-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+                        <div>
+                            <label for="action_recommended" class="block text-[11px] font-semibold text-slate-700">Recommendation</label>
+                            <select id="action_recommended" name="action_recommended" class="mt-1 w-full text-xs rounded-md border-slate-300 bg-white py-1.5 px-2 text-slate-800 focus:border-aicte-500">
+                                <option value="CLEAR">CLEAR (Checks clean)</option>
+                                <option value="FLAG_DISCREPANCY">FLAG_DISCREPANCY (Discrepancy noted)</option>
+                                <option value="REJECT">REJECT (Recommend rejection to authority)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="note" class="block text-[11px] font-semibold text-slate-700">Note Content *</label>
+                            <textarea id="note" name="note" rows="2" required placeholder="Observations, branch calls, discrepancies noted..."
+                                      class="mt-1 w-full text-xs rounded-md border-slate-300 bg-white py-1.5 px-2 text-slate-800 focus:border-aicte-500"></textarea>
+                        </div>
+                        <button type="submit"
+                                class="px-3 py-2 bg-slate-700 hover:bg-slate-800 text-white font-semibold text-xs rounded-lg shadow-sm transition">
+                            Record Scrutiny Note
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+
+                <!-- Flag Discrepancy (Creates Officer Ticket) -->
+                {% if can_flag %}
+                <div class="p-4 bg-amber-50/60 rounded-lg border border-amber-200">
+                    <h4 class="text-xs font-bold text-amber-900">Flag Discrepancy</h4>
+                    <p class="text-xs text-amber-700 mt-0.5">Transitions to DISCREPANCY_FLAGGED and creates an open OFFICER-FLAG ticket.</p>
+                    <form method="POST" action="/instruments/{{ instrument.id }}/actions/flag-discrepancy" class="mt-3 space-y-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+                        <div>
+                            <label for="reason" class="block text-[11px] font-semibold text-amber-900">Reason for Flagging (min 5 chars) *</label>
+                            <textarea id="reason" name="reason" rows="3" minlength="5" required placeholder="Specify discrepancies in maturity date, unauthorized renewal clause, or bank mismatch..."
+                                      class="mt-1 w-full text-xs rounded-md border-amber-300 bg-white py-1.5 px-2 text-slate-800 focus:border-amber-500 focus:ring-amber-500"></textarea>
+                        </div>
+                        <button type="submit"
+                                class="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-lg shadow-sm transition">
+                            Flag Discrepancy
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- 4. Verify & Activate Buttons -->
+            {% if can_verify or can_activate %}
+            <div class="p-4 bg-slate-50 rounded-lg border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h4 class="text-xs font-bold text-slate-800">State Progression</h4>
+                    <p class="text-xs text-slate-500 mt-0.5">Advance custody lifecycle once verification requirements and regulatory checks pass.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                    {% if can_verify %}
+                    <form method="POST" action="/instruments/{{ instrument.id }}/actions/verify">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+                        <button type="submit"
+                                class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs rounded-lg shadow-sm transition">
+                            Mark Verified (UNDER_SCRUTINY &rarr; VERIFIED)
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if can_activate %}
+                    <form method="POST" action="/instruments/{{ instrument.id }}/actions/activate">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+                        <button type="submit"
+                                class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg shadow-sm transition">
+                            Activate Deposit (VERIFIED &rarr; ACTIVE)
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 5. Approver Authority Rejection -->
+            {% if can_reject %}
+            <div class="p-4 bg-rose-50/70 rounded-lg border-2 border-rose-300">
+                <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-bold text-rose-900">Competent Authority Rejection Ruling</h4>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-200 text-rose-900">
+                        Terminal Action
+                    </span>
+                </div>
+                <p class="text-xs text-rose-700 mt-1">
+                    Permanently rejects this instrument. The rejection ruling and justification are recorded irrevocably in the audit log.
+                </p>
+                <form method="POST" action="/instruments/{{ instrument.id }}/actions/reject" class="mt-3 space-y-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+                    <div>
+                        <label for="reject_justification" class="block text-[11px] font-semibold text-rose-900">Formal Rejection Justification (min 10 characters) *</label>
+                        <textarea id="reject_justification" name="justification" rows="2" minlength="10" required placeholder="State exact grounds for rejection (e.g. unverified joint holder clause, forged confirmation)..."
+                                  class="mt-1 w-full text-xs rounded-md border-rose-300 bg-white py-1.5 px-2 text-slate-800 focus:border-rose-500 focus:ring-rose-500"></textarea>
+                    </div>
+                    <button type="submit"
+                            onclick="return confirm('Are you sure you want to REJECT this instrument? This action is terminal and will be permanently logged.');"
+                            class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs rounded-lg shadow-sm transition">
+                        Reject Instrument (Terminal)
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Provenance Table -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
@@ -150,12 +415,136 @@
                 <div class="sm:w-1/3 flex justify-start sm:justify-end">
                     {% if prov_map[fname] %}
                     <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 font-mono">
-                        {{ prov_map[fname].provenance_type }}{% if prov_map[fname].provenance_type != "SELF_DECLARED" and prov_map[fname].confidence_score is not none %} ({{ prov_map[fname].confidence_score }}){% endif %}
+                        {% if prov_map[fname].provenance_type == "MOCK_BANK_CONFIRMED" %}Demo / Simulated{% elif prov_map[fname].provenance_type == "OFFICER_VERIFIED" %}Officer Verified{% else %}{{ prov_map[fname].provenance_type }}{% endif %}{% if prov_map[fname].provenance_type != "SELF_DECLARED" and prov_map[fname].confidence_score is not none %} ({{ prov_map[fname].confidence_score }}){% endif %}
                     </span>
                     {% else %}
                     <span class="text-[10px] text-slate-400 italic">No provenance record</span>
                     {% endif %}
                 </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Scrutiny Notes & Officer Observations -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
+            <div>
+                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Scrutiny Notes & Recommendations</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Formal officer observations and recommendations for competent authority</p>
+            </div>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                {{ scrutiny_notes | length }} note{% if scrutiny_notes | length != 1 %}s{% endif %}
+            </span>
+        </div>
+        <div class="divide-y divide-slate-100 text-xs">
+            {% for note in scrutiny_notes %}
+            <div class="px-6 py-4 space-y-2">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-slate-800">
+                            {{ user_map[note.officer_id] or "AICTE Staff" }}
+                        </span>
+                        {% if note.action_recommended == "CLEAR" %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            CLEAR
+                        </span>
+                        {% elif note.action_recommended == "FLAG_DISCREPANCY" %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                            FLAG_DISCREPANCY
+                        </span>
+                        {% elif note.action_recommended == "REJECT" %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                            RECOMMEND REJECTION
+                        </span>
+                        {% endif %}
+                    </div>
+                    <span class="text-[11px] font-mono text-slate-400">
+                        {{ note.created_at | format_datetime }}
+                    </span>
+                </div>
+                <div class="text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-200/60 leading-relaxed">
+                    {{ note.note_text }}
+                </div>
+            </div>
+            {% else %}
+            <div class="p-6 text-center text-xs text-slate-400">
+                No scrutiny notes recorded yet.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Bank Verification Records -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
+            <div>
+                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Bank Verification Records</h2>
+                <p class="text-xs text-slate-500 mt-0.5">CBS API responses and signed confirmation letters</p>
+            </div>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                {{ verification_records | length }} record{% if verification_records | length != 1 %}s{% endif %}
+            </span>
+        </div>
+        <div class="divide-y divide-slate-100 text-xs">
+            {% for rec in verification_records %}
+            <div class="px-6 py-4 space-y-2">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-slate-800">
+                            {% if rec.provider_type == "MOCK_BANK" %}
+                                Mock Bank API
+                            {% elif rec.provider_type == "MANUAL_LETTER" %}
+                                Manual Confirmation Letter
+                            {% else %}
+                                {{ rec.provider_type }}
+                            {% endif %}
+                        </span>
+                        {% if rec.provider_type == "MOCK_BANK" %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                            Demo / Simulated
+                        </span>
+                        {% endif %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold
+                            {% if rec.is_verified %}bg-emerald-50 text-emerald-800 border border-emerald-200
+                            {% else %}bg-rose-50 text-rose-800 border border-rose-200{% endif %}">
+                            {% if rec.is_verified %}VERIFIED{% else %}FAILED / MISMATCH{% endif %}
+                        </span>
+                    </div>
+                    <span class="text-[11px] font-mono text-slate-400">
+                        {{ rec.executed_at | format_datetime }}
+                    </span>
+                </div>
+
+                {% if rec.raw_response and rec.raw_response.get("officer_username") %}
+                <div class="text-[11px] text-slate-500">
+                    Verified By Officer: <span class="font-medium text-slate-700">{{ rec.raw_response.get("officer_username") }}</span>
+                </div>
+                {% endif %}
+
+                {% if rec.raw_response and rec.raw_response.get("document_id") %}
+                <div class="pt-1">
+                    <a href="/instruments/{{ instrument.id }}/documents/{{ rec.raw_response.get('document_id') }}/download"
+                       class="inline-flex items-center text-aicte-700 hover:text-aicte-900 font-semibold underline text-xs">
+                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        Download Associated Confirmation Letter Scan
+                    </a>
+                </div>
+                {% endif %}
+
+                {% if rec.raw_response %}
+                <div class="mt-2 text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-200 font-mono text-slate-700 overflow-x-auto">
+                    {% for k, v in rec.raw_response.items() %}
+                    <div><span class="text-slate-500">{{ k }}:</span> {{ v }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="p-6 text-center text-xs text-slate-400">
+                No bank verification records on file.
             </div>
             {% endfor %}
         </div>
@@ -182,7 +571,7 @@
                     <div>
                         <div class="font-semibold text-slate-900">{{ doc.file_name }}</div>
                         <div class="text-[11px] text-slate-400 font-mono mt-0.5">
-                            {{ doc.file_mime_type }} • {{ doc.file_size_bytes | format_filesize }}
+                            {{ doc.file_mime_type }} • {{ doc.file_size_bytes | format_filesize }} • Type: <span class="font-semibold text-slate-700">{{ doc.document_type }}</span>
                         </div>
                         <div class="text-[10px] text-slate-400 font-mono mt-0.5">
                             SHA-256: <span class="text-slate-600">{{ doc.sha256_hash }}</span>
@@ -299,12 +688,61 @@
         </div>
     </div>
 
+    <!-- Read-Only Audit Log Records -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
+            <div>
+                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Audit Log & Event Trail</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Immutable audit log entries recorded by the system</p>
+            </div>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                {{ audit_events | length }} log entry{% if audit_events | length != 1 %}ies{% endif %}
+            </span>
+        </div>
+        <div class="divide-y divide-slate-100 text-xs">
+            {% for evt in audit_events %}
+            <div class="px-6 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono font-bold text-slate-900">{{ evt.action }}</span>
+                        {% if evt.canonical_payload and evt.canonical_payload.get("actor_role") %}
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-100 text-slate-700 border border-slate-200">
+                            {{ evt.canonical_payload.get("actor_role") }}
+                        </span>
+                        {% endif %}
+                        {% if evt.actor_user_id and user_map[evt.actor_user_id] %}
+                        <span class="text-[11px] text-slate-600 font-medium">({{ user_map[evt.actor_user_id] }})</span>
+                        {% endif %}
+                    </div>
+                    {% if evt.canonical_payload and (evt.canonical_payload.get("from_state") or evt.canonical_payload.get("to_state")) %}
+                    <div class="text-[11px] font-mono text-slate-500">
+                        {{ evt.canonical_payload.get("from_state") or "—" }} &rarr; {{ evt.canonical_payload.get("to_state") or "—" }}
+                    </div>
+                    {% endif %}
+                    {% if evt.canonical_payload and evt.canonical_payload.get("justification") %}
+                    <p class="text-[11px] text-slate-600 italic">
+                        Justification: {{ evt.canonical_payload.get("justification") }}
+                    </p>
+                    {% endif %}
+                </div>
+                <div class="text-[11px] font-mono text-slate-400 sm:text-right">
+                    {{ evt.event_timestamp | format_datetime }}
+                </div>
+            </div>
+            {% else %}
+            <div class="p-6 text-center text-xs text-slate-400">
+                No audit events recorded for this instrument.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
     <!-- Lifecycle History & Audit Timeline -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
             <div>
-                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Lifecycle History & Audit Timeline</h2>
-                <p class="text-xs text-slate-500 mt-0.5">Chronological record of verified transitions and regulatory actions</p>
+                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Lifecycle History & State Transitions</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Chronological record of verified state machine transitions</p>
             </div>
             <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-100 text-slate-600 border border-slate-200">
                 {{ timeline | length }} event{% if timeline | length != 1 %}s{% endif %}

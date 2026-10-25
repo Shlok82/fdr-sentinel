@@ -16,6 +16,7 @@ from app.services.clock_service import clock_service
 
 # Lower bcrypt rounds during tests for high performance
 settings.BCRYPT_ROUNDS = 4
+settings.MOCK_BANK_LATENCY_MS = 0
 
 # Derive test database URLs
 TEST_OWNER_URL = os.getenv("TEST_OWNER_DATABASE_URL", settings.TEST_OWNER_DATABASE_URL)

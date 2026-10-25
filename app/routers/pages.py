@@ -1,16 +1,20 @@
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Request, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from app.core.templates import templates
+from sqlalchemy import func
 from sqlalchemy.orm import Session
+from app.core.templates import templates
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, get_optional_current_user, require_roles
 from app.models.user import User
+from app.models.institution import Institution
 from app.models.instrument import Instrument
+from app.models.discrepancy import DiscrepancyTicket
+from app.models.scrutiny import ScrutinyNote
 from app.services.clock_service import clock_service
 from app.services.audit_service import verify_chain
-from app.services.instrument_fsm import InstrumentState, compute_status_counts
+from app.services.instrument_fsm import InstrumentState, compute_status_counts, ALL_STATES
 
 router = APIRouter(include_in_schema=False)
 
@@ -97,10 +101,13 @@ def institution_workspace(
 @router.get("/scrutiny", response_class=HTMLResponse)
 def scrutiny_workspace(
     request: Request,
+    status: Optional[str] = None,
+    sort: Optional[str] = "created_at",
+    order: Optional[str] = "desc",
     user: User = Depends(require_roles("SCRUTINY_OFFICER")),
     db: Session = Depends(get_db)
 ):
-    """AICTE Scrutiny Officer workstation."""
+    """AICTE Scrutiny Officer workstation with active review queue."""
     ctx = common_context(request, user)
     ctx["role_title"] = "Scrutiny Officer Workstation"
     ctx["role_description"] = "Review incoming FDR submissions, inspect automated discrepancy flags, and verify bank provenance."
@@ -115,12 +122,52 @@ def scrutiny_workspace(
     ctx["active_count"] = status_counts[InstrumentState.ACTIVE.value]
     ctx["other_count"] = status_counts["OTHER"]
 
+    # Build queue query
+    query = (
+        db.query(Instrument, Institution.name.label("institution_name"))
+        .join(Institution, Instrument.institution_id == Institution.id)
+    )
+    if status and status in ALL_STATES:
+        query = query.filter(Instrument.status == status)
+
+    if sort == "maturity_date":
+        order_col = Instrument.maturity_date.asc().nullslast() if order == "asc" else Instrument.maturity_date.desc().nullslast()
+    elif sort == "principal_amount":
+        order_col = Instrument.principal_amount.asc().nullslast() if order == "asc" else Instrument.principal_amount.desc().nullslast()
+    else:
+        order_col = Instrument.created_at.asc() if order == "asc" else Instrument.created_at.desc()
+
+    queue_rows = query.order_by(order_col).limit(50).all()
+
+    blocking_ticket_counts = dict(
+        db.query(DiscrepancyTicket.instrument_id, func.count(DiscrepancyTicket.id))
+        .filter(DiscrepancyTicket.status == "OPEN", DiscrepancyTicket.blocking == True)
+        .group_by(DiscrepancyTicket.instrument_id)
+        .all()
+    )
+
+    items = []
+    for inst, inst_name in queue_rows:
+        items.append({
+            "instrument": inst,
+            "institution_name": inst_name,
+            "blocking_count": blocking_ticket_counts.get(inst.id, 0),
+        })
+
+    ctx["items"] = items
+    ctx["selected_status"] = status if status in ALL_STATES else None
+    ctx["selected_sort"] = sort
+    ctx["selected_order"] = order
+
     return templates.TemplateResponse("roles/scrutiny.html", ctx)
 
 
 @router.get("/approver", response_class=HTMLResponse)
 def approver_workspace(
     request: Request,
+    status: Optional[str] = None,
+    sort: Optional[str] = "created_at",
+    order: Optional[str] = "desc",
     user: User = Depends(require_roles("APPROVER_AUTHORITY")),
     db: Session = Depends(get_db)
 ):
@@ -138,6 +185,57 @@ def approver_workspace(
     ctx["released_count"] = status_counts[InstrumentState.RELEASED.value]
     ctx["flagged_count"] = status_counts[InstrumentState.DISCREPANCY_FLAGGED.value]
     ctx["other_count"] = status_counts["OTHER"]
+
+    # Queue query: defaults to items needing authority attention
+    query = (
+        db.query(Instrument, Institution.name.label("institution_name"))
+        .join(Institution, Instrument.institution_id == Institution.id)
+    )
+    if status and status in ALL_STATES:
+        query = query.filter(Instrument.status == status)
+    else:
+        query = query.filter(Instrument.status.in_([
+            InstrumentState.UNDER_SCRUTINY.value,
+            InstrumentState.DISCREPANCY_FLAGGED.value,
+            InstrumentState.VERIFIED.value,
+            InstrumentState.RELEASE_REQUESTED.value,
+        ]))
+
+    if sort == "maturity_date":
+        order_col = Instrument.maturity_date.asc().nullslast() if order == "asc" else Instrument.maturity_date.desc().nullslast()
+    elif sort == "principal_amount":
+        order_col = Instrument.principal_amount.asc().nullslast() if order == "asc" else Instrument.principal_amount.desc().nullslast()
+    else:
+        order_col = Instrument.created_at.asc() if order == "asc" else Instrument.created_at.desc()
+
+    queue_rows = query.order_by(order_col).limit(50).all()
+
+    blocking_ticket_counts = dict(
+        db.query(DiscrepancyTicket.instrument_id, func.count(DiscrepancyTicket.id))
+        .filter(DiscrepancyTicket.status == "OPEN", DiscrepancyTicket.blocking == True)
+        .group_by(DiscrepancyTicket.instrument_id)
+        .all()
+    )
+
+    rejection_recommended_ids = set(
+        row[0] for row in db.query(ScrutinyNote.instrument_id)
+        .filter(ScrutinyNote.action_recommended == "REJECT")
+        .all()
+    )
+
+    items = []
+    for inst, inst_name in queue_rows:
+        items.append({
+            "instrument": inst,
+            "institution_name": inst_name,
+            "blocking_count": blocking_ticket_counts.get(inst.id, 0),
+            "rejection_recommended": inst.id in rejection_recommended_ids,
+        })
+
+    ctx["items"] = items
+    ctx["selected_status"] = status if status in ALL_STATES else None
+    ctx["selected_sort"] = sort
+    ctx["selected_order"] = order
 
     return templates.TemplateResponse("roles/approver.html", ctx)
 

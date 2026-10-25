@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     UPLOAD_STORAGE_PATH: str = "/app/storage"
     VAULT_PATH: str = "/app/storage"
     MAX_UPLOAD_MB: int = 10
+    MOCK_BANK_LATENCY_MS: int = 800
 
     # Backwards compatibility alias for ENVIRONMENT
     @property
