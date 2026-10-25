@@ -8,7 +8,24 @@
 **Submission Deadline:** 28 October 2026  
 **Current Phase:** Day 2 — Template Formatting Hardening, Global 500 Handler & Null-Safety (Stage 4.3 Bugfix Complete)  
 **Last Updated:** 2026-10-25  
-**Overall Readiness:** 66% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel, Nullable Migration 0002, AES-256-GCM Envelope Encryption with AAD Document ID Binding, Sharded Storage Vault, Atomic Multi-Table Submission Service, Field Provenance, Scoped Views & Downloads, Submission Form Demo Tools & Scenarios, fpdf2 Specimen PDF Generator, Fictional Data Neutralization, Minimal Health Probe, Shared Null-Safe Filters format_inr/format_date/format_datetime/format_filesize/default_dash, Global Exception Catch-All 500 Handler, Template Formatting Linting Test, 124 Tests Passing)
+**Overall Readiness:** 40% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel, Nullable Migration 0002, AES-256-GCM Envelope Encryption with AAD Document ID Binding, Sharded Storage Vault, Atomic Multi-Table Submission Service, Field Provenance, Scoped Views & Downloads, Submission Form Demo Tools & Scenarios, fpdf2 Specimen PDF Generator, Shared Null-Safe Filters, Global Exception Catch-All 500 Handler, 124 Tests Passing)  
+> **Schedule status:** Tier 1 incomplete at end of Day 2; Stages 5-7 in progress.
+
+---
+
+## 🏗️ Build Stages & Execution Plan
+
+| Stage | Focus Area | Status | Notes |
+| :---: | :--- | :---: | :--- |
+| **Stage 1** | Foundation, Docker, PostgreSQL, Database Roles | Done | Sync SQLAlchemy 2.0, migrations, `/healthz` |
+| **Stage 2** | ClockService & SHA-256 Hash-Chained Audit Log | Done | Temporal grep rule, tamper verification linear check |
+| **Stage 3** | Auth, RBAC, Offline UI Shell | Done | 4 roles + demo.admin, CSRF double-submit, vendored assets |
+| **Stage 3.1** | Demo Credentials Panel & UI Polish | Done | Triple-gated credentials panel, request-time password interpolation |
+| **Stage 4** | Encrypted Document Vault & FDR Submission | Done | AES-256-GCM envelope encryption, multi-table atomic service |
+| **Stage 4.3** | Null-Safety Hotfix & Global 500 Exception Boundary | Done | Shared template filters, styled 500 handler, 124 tests passing |
+| **Stage 5** | FSM & Status Lifecycle Timeline | Next | 11-state machine, dual release request states, audit trails |
+| **Stage 6** | DiscrepancyEngine & Trust Score Inputs | Planned | DISC-01 to DISC-06, DISC-08, newer-submission flagging for DISC-05 |
+| **Stage 7** | Scrutiny Workstation Console | Planned | Side-by-side diff review (confirm exact scope with me) |
 
 ---
 
@@ -43,8 +60,10 @@
 ### Day 3: Monday, 26 Oct 2026 (Tier 3: Lifecycle Completion, Integrity & Deployment)
 - [ ] Implement parent-child renewal chain linkage (parent instrument transitions to `RENEWED` only when child reaches `ACTIVE`).
 - [ ] Implement dual-key release workflow: officer statutory checklist + Competent Authority sign-off (allowed from `ACTIVE`, `EXPIRING`, or `MATURED`).
-- [x] Build Tamper-Detection audit verification view (`/audit/verify`) with green/red status badge and live row-tampering demonstration test.
-- [x] Write synthetic seed data generator script creating **multi-institution** accounts across AICTE roles with idempotent re-execution.
+- [x] Build Tamper-Detection audit verification view (`/audit/verify`) with green/red status badge.
+- [ ] Scripted live row-tampering demonstration against database audit rows.
+- [x] Synthetic seed data: role users + two sample institutions with isolated tenancies (`scripts/seed_users.py`).
+- [ ] Synthetic seed data: 50 institutions across 8 regions with full lifecycle states (Stage 3 deliverable).
 - [ ] Verify production Docker Compose deployment (local/staging environment).
 - [ ] **Record backup demo video:** Full 5-minute judge walkthrough recorded and stored safely as fallback deliverable.
 
@@ -126,7 +145,7 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 - [ ] Executive Dashboard renders live Maturity Wall (Chart.js) and Deposit at Risk counters from seed dataset.
 - [ ] Discrepancy Engine saves defective test upload as `DISCREPANCY_FLAGGED` without touching incumbent deposit.
 - [ ] Side-by-side text extraction diff renders clearly on Scrutiny Officer console.
-- [x] Demo Time Machine button (+60 Days) successfully shifts `ClockService` and fires single-process scheduler with catch-up alerts.
+- [ ] Demo Time Machine button (+60 Days) successfully shifts `ClockService` and fires single-process scheduler with catch-up alerts.
 - [ ] Bilingual (English/Hindi) notice preview modal displays correctly.
 - [ ] Renewal chain clearly displays parent-child lineage (parent transitions to `RENEWED` only when child reaches `ACTIVE`).
 - [ ] Competent Authority release workflow enforces statutory checklist and produces Ed25519-signed QR certificate.
@@ -148,3 +167,7 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 * **Issue 8 (UTC vs IST Date Boundary):** `ClockService.today()` calculates calendar date in UTC; in India Standard Time (+05:30) near midnight UTC date may differ by 1 day. All database timestamps remain UTC.
 * **Issue 9 (Master Key Rotation Deferred):** Single versioned master key is used for envelope encryption; multi-version master key rotation is deferred to production hardening.
 * **Issue 10 (FSM Transitions & Discrepancy Engine Deferred to Stages 5 & 6):** All newly submitted instruments initialize with status `SUBMITTED` and baseline trust score `20`; 11-state FSM transitions arrive in Stage 5 and automated discrepancy rule flags arrive in Stage 6.
+* **Issue 11 (Release-Rejection Restoration):** Release-rejection workflow must restore the instrument to its prior pre-release state (`ACTIVE`, `EXPIRING`, or `MATURED`) rather than a terminal failed state.
+* **Issue 12 (Baseline Trust Score):** Trust score currently initializes to a constant baseline of `20`; the explainable earned Trust Score calculator (base + evidence additions - discrepancy deductions) is pending Stage 6.
+* **Issue 13 (Nullable Business Fields):** All instrument business columns are nullable in the database (Migration `0002_nullable_instrument_fields.py`); all current and new code must safely handle `None` values without crashing.
+* **Issue 14 (Demo Tools Gating):** Prototype demo scenario tools and sample PDF generators must remain strictly gated by `DEMO_MODE=true` and non-production environments (`APP_ENV != "production"`).
