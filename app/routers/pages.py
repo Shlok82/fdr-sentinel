@@ -1,42 +1,143 @@
-from fastapi import APIRouter, Request, Depends
-from fastapi.responses import HTMLResponse
+from typing import Optional
+from fastapi import APIRouter, Request, Depends, HTTPException, status
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from sqlalchemy import text
-from app.core.database import get_db
-from app.services.clock_service import clock_service
 from app.core.config import settings
+from app.core.database import get_db
+from app.core.dependencies import get_current_user, get_optional_current_user, require_roles
+from app.models.user import User
+from app.services.clock_service import clock_service
+from app.services.audit_service import verify_chain
 
 templates = Jinja2Templates(directory="app/templates")
-
 router = APIRouter(include_in_schema=False)
 
 
-@router.get("/", response_class=HTMLResponse)
-def index_page(request: Request, db: Session = Depends(get_db)):
-    """Render the main landing / portal dashboard skeleton."""
-    db_connected = False
-    table_names = []
-    try:
-        db.execute(text("SELECT 1"))
-        db_connected = True
-        # Query public tables to show system schema readiness
-        res = db.execute(text(
-            "SELECT table_name FROM information_schema.tables "
-            "WHERE table_schema = 'public' ORDER BY table_name"
-        ))
-        table_names = [r[0] for r in res.fetchall()]
-    except Exception:
-        db_connected = False
+def common_context(request: Request, user: Optional[User]) -> dict:
+    """Constructs baseline template context available across all pages."""
+    csrf_token = request.cookies.get(settings.CSRF_COOKIE_NAME, "")
+    return {
+        "request": request,
+        "user": user,
+        "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
+        "is_simulated": clock_service.is_simulated,
+        "demo_mode": settings.DEMO_MODE,
+        "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
+        "csrf_token": csrf_token,
+    }
 
-    return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
-            "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
-            "is_simulated": clock_service.is_simulated,
-            "demo_mode": settings.DEMO_MODE,
-            "db_connected": db_connected,
-            "tables": table_names,
+
+@router.get("/", response_class=HTMLResponse)
+def index_page(
+    request: Request,
+    user: Optional[User] = Depends(get_optional_current_user)
+):
+    """Landing page: redirects authenticated users to their role workspace."""
+    if user:
+        mapping = {
+            "INSTITUTION_ADMIN": "/institution",
+            "SCRUTINY_OFFICER": "/scrutiny",
+            "APPROVER_AUTHORITY": "/approver",
+            "AUDITOR": "/auditor",
         }
-    )
+        return RedirectResponse(url=mapping.get(user.role, "/dashboard"), status_code=status.HTTP_302_FOUND)
+
+    ctx = common_context(request, user)
+    return templates.TemplateResponse("index.html", ctx)
+
+
+@router.get("/dashboard", response_class=HTMLResponse)
+def dashboard_redirect(user: User = Depends(get_current_user)):
+    """Central router directing authenticated users to their role-specific workspace."""
+    mapping = {
+        "INSTITUTION_ADMIN": "/institution",
+        "SCRUTINY_OFFICER": "/scrutiny",
+        "APPROVER_AUTHORITY": "/approver",
+        "AUDITOR": "/auditor",
+    }
+    return RedirectResponse(url=mapping.get(user.role, "/institution"), status_code=status.HTTP_302_FOUND)
+
+
+@router.get("/institution", response_class=HTMLResponse)
+def institution_workspace(
+    request: Request,
+    user: User = Depends(require_roles("INSTITUTION_ADMIN"))
+):
+    """Institution administrator workspace placeholder."""
+    ctx = common_context(request, user)
+    ctx["role_title"] = "Institution Portal — FDR Custody & Submissions"
+    ctx["role_description"] = "Submit new Fixed Deposit Receipts, track verification status, and initiate renewals/refunds."
+    ctx["stage_note"] = "FDR Ingestion & Discrepancy Engine arrives in Stage 4."
+    return templates.TemplateResponse("roles/institution.html", ctx)
+
+
+@router.get("/scrutiny", response_class=HTMLResponse)
+def scrutiny_workspace(
+    request: Request,
+    user: User = Depends(require_roles("SCRUTINY_OFFICER"))
+):
+    """AICTE Scrutiny Officer workstation placeholder."""
+    ctx = common_context(request, user)
+    ctx["role_title"] = "Scrutiny Officer Workstation"
+    ctx["role_description"] = "Review incoming FDR submissions, inspect automated discrepancy flags, and verify bank provenance."
+    ctx["stage_note"] = "Scrutiny Console & side-by-side diff viewer arrives in Stage 4."
+    return templates.TemplateResponse("roles/scrutiny.html", ctx)
+
+
+@router.get("/approver", response_class=HTMLResponse)
+def approver_workspace(
+    request: Request,
+    user: User = Depends(require_roles("APPROVER_AUTHORITY"))
+):
+    """Competent Authority release authorization workstation placeholder."""
+    ctx = common_context(request, user)
+    ctx["role_title"] = "Competent Authority Workstation"
+    ctx["role_description"] = "Review compliance checklists and issue dual-key cryptographic authorizations for deposit releases."
+    ctx["stage_note"] = "Dual-Key Release workflow arrives in Stage 5."
+    return templates.TemplateResponse("roles/approver.html", ctx)
+
+
+@router.get("/auditor", response_class=HTMLResponse)
+def auditor_workspace(
+    request: Request,
+    user: User = Depends(require_roles("AUDITOR"))
+):
+    """System Auditor workspace placeholder."""
+    ctx = common_context(request, user)
+    ctx["role_title"] = "Regulatory Audit & Vigilance Console"
+    ctx["role_description"] = "Inspect the cryptographic SHA-256 audit log hash chain and verify regulatory compliance."
+    ctx["stage_note"] = "Full Audit Log Browser arrives in Stage 6."
+    return templates.TemplateResponse("roles/auditor.html", ctx)
+
+
+@router.get("/audit/verify", response_class=HTMLResponse)
+def audit_verify_page(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Tamper-detection audit verification view.
+    
+    Access Control per SPEC §3:
+    - AUDITOR: Full audit report (status, rows checked, first broken id, reason, simulated time).
+    - SCRUTINY_OFFICER, APPROVER_AUTHORITY, demo.admin: Status-only summary (OK/BROKEN and broken ID).
+    - INSTITUTION_ADMIN: Strictly HTTP 403 Forbidden.
+    
+    Read-only: Never writes audit entries.
+    """
+    if user.role == "INSTITUTION_ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Audit verification is restricted to regulatory officers."
+        )
+
+    # Perform linear-time verification of the audit log hash chain
+    result = verify_chain(db)
+
+    ctx = common_context(request, user)
+    ctx["verify_result"] = result
+    ctx["is_full_auditor"] = (user.role == "AUDITOR" and not user.is_demo_admin)
+    ctx["checked_at"] = clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC")
+
+    return templates.TemplateResponse("audit/verify.html", ctx)

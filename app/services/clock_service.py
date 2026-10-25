@@ -61,6 +61,16 @@ class ClockService:
             pass
         return self._offset_seconds
 
+    def real_now(self) -> datetime:
+        """Returns the real hardware UTC time with NO simulated offset.
+        
+        CRITICAL ARCHITECTURAL CONSTRAINT:
+        This method is strictly reserved for session/token lifetimes (JWT iat/exp)
+        and rate-limiting/throttling. It MUST NEVER be used for regulatory business
+        logic, temporal alerts, or audit log timestamps.
+        """
+        return datetime.now(timezone.utc)  # clock-allow
+
     def now(self) -> datetime:
         """Returns the authoritative application time (UTC) with simulated offset applied."""
         real_utc = datetime.now(timezone.utc)  # clock-allow

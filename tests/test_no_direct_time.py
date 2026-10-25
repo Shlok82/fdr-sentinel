@@ -58,3 +58,41 @@ def test_no_direct_hardware_time_access():
         f"Found {len(violations)} banned direct time calls outside ClockService allowlist:\n"
         + "\n".join(violations)
     )
+
+
+def test_real_now_only_in_auth_security_modules():
+    """ClockService.real_now() is strictly restricted to session/token expiration in security modules.
+    
+    Any invocation of real_now() in business logic, temporal scheduling, or audit logging
+    is a critical architectural violation.
+    """
+    root_dir = Path(__file__).resolve().parent.parent
+    allowed_files = {"clock_service.py", "security.py"}
+    violations = []
+
+    real_now_regex = re.compile(r"\breal_now\b")
+
+    for dir_name in DIRECTORIES_TO_SCAN:
+        target_dir = root_dir / dir_name
+        if not target_dir.exists():
+            continue
+
+        for file_path in target_dir.rglob("*.py"):
+            if "__pycache__" in file_path.parts:
+                continue
+
+            if file_path.name in allowed_files:
+                continue
+
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                for line_idx, line in enumerate(f, start=1):
+                    if real_now_regex.search(line):
+                        rel_path = file_path.relative_to(root_dir)
+                        violations.append(
+                            f"{rel_path}:{line_idx} - Unauthorized real_now() call: {line.strip()}"
+                        )
+
+    assert not violations, (
+        f"Found {len(violations)} unauthorized references to real_now() outside auth/security:\n"
+        + "\n".join(violations)
+    )

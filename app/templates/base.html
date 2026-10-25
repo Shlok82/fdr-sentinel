@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}FDR Sentinel | AICTE Security Deposit Portal{% endblock %}</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Local Vendored Assets (Zero External CDN Calls) -->
+    <script src="/static/vendor/tailwind.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -29,63 +29,115 @@
             }
         }
     </script>
-    <!-- HTMX CDN -->
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <!-- Chart.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="icon" type="image/png" href="/static/images/logo.png">
+    <script src="/static/vendor/htmx.min.js"></script>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="icon" type="image/png" href="/static/favicon.png">
     {% block head %}{% endblock %}
 </head>
-<body class="flex flex-col min-h-full font-sans text-slate-800 antialiased">
+<body class="flex flex-col min-h-full font-sans text-slate-800 antialiased" hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+    <!-- Accessibility Skip Link -->
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-aicte-600 focus:text-white focus:px-4 focus:py-2 focus:rounded-md focus:shadow-md focus:outline-none">
+        Skip to main content
+    </a>
+
+    <!-- Simulated Date Warning Banner (Rendered when offset != 0) -->
+    <div id="simulated-date-banner-container">
+        {% if is_simulated %}
+        <div id="simulated-date-banner" class="bg-amber-500 text-slate-950 font-semibold text-center py-1.5 px-4 text-xs sm:text-sm flex items-center justify-center gap-2 border-b border-amber-600 shadow-sm" role="status">
+            <span class="inline-block w-2 h-2 rounded-full bg-slate-950 animate-pulse"></span>
+            <span>Simulated date: <strong class="underline">{{ simulated_date_str }}</strong> (Demo Time Machine Active)</span>
+        </div>
+        {% endif %}
+    </div>
+
     <!-- Header / Navigation -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm" role="banner">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
+                <!-- Branding -->
                 <div class="flex items-center space-x-4">
-                    <a href="/" class="flex items-center space-x-3">
-                        <img src="/static/images/logo+wordmark.png" alt="FDR Sentinel Logo" class="h-10 w-auto object-contain">
+                    <a href="/" class="flex items-center focus:outline-none focus:ring-2 focus:ring-aicte-500 rounded">
+                        <img src="/static/images/logo_wordmark.png" alt="FDR Sentinel — AICTE Security Deposit Portal" class="h-9 w-auto object-contain">
                     </a>
                     <div class="hidden md:block h-6 w-px bg-slate-300"></div>
                     <div class="hidden md:flex flex-col">
-                        <span class="text-xs font-semibold uppercase tracking-wider text-aicte-700">AICTE • Regulation Bureau</span>
-                        <span class="text-xs text-slate-500">Security Deposit / FDR Custody Management</span>
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-aicte-700">AICTE • Regulation Bureau</span>
+                        <span class="text-[10px] text-slate-500">Security Deposit / FDR Custody Management</span>
                     </div>
                 </div>
 
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center bg-slate-100 rounded-full px-3 py-1 text-xs text-slate-600 font-mono">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
-                        <span id="header-clock">{{ current_time or 'Clock Active' }}</span>
+                <!-- Navigation & User Status -->
+                <div class="flex items-center space-x-3 sm:space-x-4">
+                    {% if user %}
+                    <nav class="hidden sm:flex items-center space-x-2 text-xs font-medium text-slate-600" aria-label="Main Navigation">
+                        {% if user.role == "INSTITUTION_ADMIN" %}
+                        <a href="/institution" class="px-2.5 py-1.5 rounded hover:bg-slate-100 hover:text-slate-900 transition focus:outline-none focus:ring-1 focus:ring-slate-400">Institution Portal</a>
+                        {% elif user.role == "SCRUTINY_OFFICER" %}
+                        <a href="/scrutiny" class="px-2.5 py-1.5 rounded hover:bg-slate-100 hover:text-slate-900 transition focus:outline-none focus:ring-1 focus:ring-slate-400">Scrutiny Console</a>
+                        {% elif user.role == "APPROVER_AUTHORITY" %}
+                        <a href="/approver" class="px-2.5 py-1.5 rounded hover:bg-slate-100 hover:text-slate-900 transition focus:outline-none focus:ring-1 focus:ring-slate-400">Approval Workstation</a>
+                        {% elif user.role == "AUDITOR" %}
+                        <a href="/auditor" class="px-2.5 py-1.5 rounded hover:bg-slate-100 hover:text-slate-900 transition focus:outline-none focus:ring-1 focus:ring-slate-400">Auditor Console</a>
+                        {% endif %}
+
+                        {% if user.role != "INSTITUTION_ADMIN" %}
+                        <a href="/audit/verify" class="px-2.5 py-1.5 rounded hover:bg-slate-100 hover:text-slate-900 transition focus:outline-none focus:ring-1 focus:ring-slate-400">Audit Verification</a>
+                        {% endif %}
+                    </nav>
+
+                    <!-- User Pill & Role Badge -->
+                    <div class="flex items-center bg-slate-100 rounded-lg px-2.5 py-1 text-xs text-slate-700 border border-slate-200">
+                        <span class="font-medium truncate max-w-[120px]">{{ user.full_name }}</span>
+                        <span class="mx-1.5 text-slate-300">|</span>
+                        <span class="font-mono text-[10px] uppercase font-semibold text-aicte-700 bg-aicte-50 px-1.5 py-0.5 rounded border border-aicte-200">{{ user.role }}</span>
                     </div>
-                    {% if demo_mode %}
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300">
-                        Demo Mode
-                    </span>
-                    {% endif %}
-                    <a href="/docs" target="_blank" class="text-xs text-slate-600 hover:text-aicte-600 font-medium px-2 py-1 border border-slate-300 rounded hover:border-aicte-500 transition">
-                        API Docs
+
+                    <!-- Logout Button (POST Only) -->
+                    <form method="POST" action="/logout" class="inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="text-xs text-slate-600 hover:text-rose-600 font-medium px-2.5 py-1.5 border border-slate-300 rounded hover:border-rose-300 transition focus:outline-none focus:ring-2 focus:ring-rose-500">
+                            Logout
+                        </button>
+                    </form>
+                    {% else %}
+                    <a href="/login" class="text-xs bg-aicte-600 hover:bg-aicte-700 text-white font-medium px-3.5 py-1.5 rounded transition focus:outline-none focus:ring-2 focus:ring-aicte-500">
+                        Sign In
                     </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Main Content Area -->
-    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    {# Demo Time Machine Toolbar (Rendered strictly for is_demo_admin when DEMO_MODE=true) #}
+    {% if user and user.is_demo_admin and demo_mode %}
+    <div id="time-machine-container">
+        {% include "components/time_machine_toolbar.html" %}
+    </div>
+    {% endif %}
+
+    <!-- Main Content Landmark -->
+    <main id="main-content" class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8" role="main">
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-white border-t border-slate-200 py-6 text-xs text-slate-500">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-2">
+    <!-- Global Accessible ARIA Live Region for HTMX Updates -->
+    <div id="htmx-live-region" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+
+    <!-- Mandatory Footer on EVERY Page -->
+    <footer class="bg-white border-t border-slate-200 py-6 text-xs text-slate-500" role="contentinfo">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-3">
             <div>
                 <span class="font-semibold text-slate-700">FDR Sentinel</span> — All India Council for Technical Education (AICTE)
-                <span class="mx-2">•</span> SIH 26265 (Smart Automation)
+                <span class="mx-2">•</span> SIH Problem Statement 26265
             </div>
-            <div class="flex items-center space-x-4">
-                <a href="/healthz" class="hover:text-slate-900 underline font-mono">/healthz</a>
+            <div class="flex items-center space-x-3 text-slate-600">
+                <!-- Mandatory Regulatory Disclosure Footer -->
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-300">
+                    Prototype: simulated data, no live bank integration
+                </span>
                 <span class="text-slate-300">|</span>
-                <span>Stage 1 of 7: Skeleton, Docker, Database</span>
+                <a href="/healthz" class="hover:text-slate-900 underline font-mono text-[11px]">/healthz</a>
             </div>
         </div>
     </footer>

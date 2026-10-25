@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}401 Unauthorized | FDR Sentinel{% endblock %}
+
+{% block content %}
+<div class="min-h-[50vh] flex flex-col items-center justify-center text-center px-4">
+    <div class="w-16 h-16 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 font-bold text-2xl mb-4">
+        🔒
+    </div>
+    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Authentication Required (401)</h1>
+    <p class="mt-2 text-sm text-slate-600 max-w-md">
+        Your session may have expired or you have not logged in. Please sign in to access this regulatory workstation.
+    </p>
+    <div class="mt-6">
+        <a href="/login" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-aicte-600 hover:bg-aicte-700 transition focus:outline-none focus:ring-2 focus:ring-aicte-500">
+            Sign In to Continue →
+        </a>
+    </div>
+</div>
+{% endblock %}

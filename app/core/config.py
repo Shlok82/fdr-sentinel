@@ -20,6 +20,13 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "REPLACE_ME"
     DOCUMENT_MASTER_KEY: str = "REPLACE_ME"
 
+    # Authentication & Session Security
+    BCRYPT_ROUNDS: int = 12
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    SESSION_COOKIE_NAME: str = "fdr_session"
+    CSRF_COOKIE_NAME: str = "fdr_csrf"
+    SEED_PASSWORD: str = "REPLACE_ME"
+
     # Database URLs
     # Owner role used for running migrations and administrative maintenance
     DATABASE_OWNER_URL: str = "postgresql+psycopg://fdr_owner:fdr_owner_dev_password@localhost:5432/fdr_sentinel"

@@ -44,6 +44,7 @@ services:
       TEST_DATABASE_URL: postgresql+psycopg://fdr_app_user:fdr_app_dev_password@db:5432/fdr_sentinel_test
       SECRET_KEY: dev_secret_key_change_in_production_min_32_chars_long
       DOCUMENT_MASTER_KEY: k8T0a7Z3Yx9L1q4W7e2R5t8Y1u4I7o0P3s6D9f2G5h8=
+      SEED_PASSWORD: ${SEED_PASSWORD:-DevSeedPassword2026!}
       UPLOAD_STORAGE_PATH: /app/storage
     depends_on:
       db:

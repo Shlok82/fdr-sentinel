@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}404 Not Found | FDR Sentinel{% endblock %}
+
+{% block content %}
+<div class="min-h-[50vh] flex flex-col items-center justify-center text-center px-4">
+    <div class="w-16 h-16 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center text-slate-700 font-bold text-2xl mb-4 font-mono">
+        404
+    </div>
+    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Record or Page Not Found (404)</h1>
+    <p class="mt-2 text-sm text-slate-600 max-w-md">
+        {{ detail or "The requested regulatory record or endpoint could not be found. It may belong to another institution or does not exist." }}
+    </p>
+    <div class="mt-6">
+        <a href="/" class="inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 transition focus:outline-none focus:ring-2 focus:ring-slate-400">
+            ← Return to Safe Workspace
+        </a>
+    </div>
+</div>
+{% endblock %}

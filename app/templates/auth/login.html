@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In | FDR Sentinel (AICTE Security Deposit Portal){% endblock %}
+
+{% block content %}
+<div class="min-h-[60vh] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div class="sm:mx-auto sm:w-full sm:max-w-md text-center">
+        <img class="mx-auto h-14 w-auto object-contain" src="/static/images/logo_wordmark.png" alt="FDR Sentinel — AICTE Security Deposit Portal">
+        <h1 class="mt-4 text-xl font-bold tracking-tight text-slate-900">Sign in to your regulatory account</h1>
+        <p class="mt-1 text-xs text-slate-500">
+            Institutional Custody & Verification Subsystem • AICTE Regulation Bureau
+        </p>
+    </div>
+
+    <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div class="bg-white py-8 px-6 shadow-sm border border-slate-200 rounded-xl sm:px-10">
+            {% if error %}
+            <div class="mb-5 rounded-lg bg-rose-50 border border-rose-200 p-4 text-xs text-rose-800 flex items-start space-x-2" role="alert">
+                <span class="font-bold text-rose-600">Error:</span>
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+
+            <form class="space-y-5" action="/login" method="POST" role="form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                {% if next %}
+                <input type="hidden" name="next" value="{{ next }}">
+                {% endif %}
+
+                <div>
+                    <label for="username" class="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                        Username / Officer ID
+                    </label>
+                    <div class="mt-1.5">
+                        <input id="username" name="username" type="text" autocomplete="username" required
+                            class="appearance-none block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-aicte-500 focus:border-aicte-500 text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="password" class="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                        Password
+                    </label>
+                    <div class="mt-1.5">
+                        <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="72"
+                            class="appearance-none block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-aicte-500 focus:border-aicte-500 text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <button type="submit"
+                        class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-aicte-600 hover:bg-aicte-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-aicte-500 transition">
+                        Sign In
+                    </button>
+                </div>
+            </form>
+
+            <div class="mt-6 border-t border-slate-100 pt-4 text-center">
+                <p class="text-[11px] text-slate-400">
+                    Restricted official portal under IT Act 2000 and DPDP Act 2023. Unauthorized access is strictly logged and audited.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

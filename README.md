@@ -1,6 +1,8 @@
-# FDR Sentinel 🛡️
-> **Intelligent Fixed Deposit & Security Deposit Lifecycle Management Portal for AICTE**  
-> *Smart India Hackathon (SIH) Entry — Problem Statement 26265 (AICTE, Regulation Bureau, Smart Automation)*
+<div align="center">
+  <img src="app/static/images/logo_wordmark.png" alt="FDR Sentinel Wordmark Logo" width="360" />
+  <p><strong>Intelligent Fixed Deposit & Security Deposit Lifecycle Management Portal for AICTE</strong><br/>
+  <em>Smart India Hackathon (SIH) Entry — Problem Statement 26265 (AICTE, Regulation Bureau, Smart Automation)</em></p>
+</div>
 
 ---
 
@@ -27,28 +29,28 @@ Technical education institutions seeking approval from the All India Council for
 
 | Feature / Capability | Description | Priority Tier | Status |
 | :--- | :--- | :---: | :---: |
-| **Auth & RBAC Middleware** | 4 discrete roles, JWT sessions, and `is_demo_admin` flag. | **Tier 1** | `Planned` |
-| **Unified ClockService** | Injected singleton temporal authority for all logic and queries. | **Tier 1** | `Planned` |
-| **Tamper-Detecting Hash Chain** | SHA-256 canonical JSON chain with DB-level privilege revocation. | **Tier 1** | `Planned` |
+| **Auth & RBAC Middleware** | 4 discrete roles, JWT sessions, and `is_demo_admin` flag. | **Tier 1** | `Completed (Stage 3)` |
+| **Unified ClockService** | Injected singleton temporal authority for all logic and queries. | **Tier 1** | `Completed (Stage 2)` |
+| **Tamper-Detecting Hash Chain** | SHA-256 canonical JSON chain with DB-level privilege revocation. | **Tier 1** | `Completed (Stage 2)` |
 | **Encrypted Submission Vault** | AES-256-GCM envelope encryption with master KEK. | **Tier 1** | `Planned` |
 | **11-State Finite State Machine** | Strict lifecycle transitions and non-destructive discrepancy flagging. | **Tier 1** | `Planned` |
 | **Deterministic Discrepancy Rules** | Core checks (DISC-01 to DISC-06, DISC-08) including duplicate isolation. | **Tier 1** | `Planned` |
 | **Scrutiny Officer Console** | HTMX-powered review workstation with anomaly indicators. | **Tier 1** | `Planned` |
 | **Temporal Alerts & Scheduler** | APScheduler single-process worker, 90/60/30/7-day horizons, catch-up. | **Tier 2** | `Planned` |
-| **Demo "Time Machine" Clock** | Dedicated toolbar for `is_demo_admin` when `DEMO_MODE=true`. | **Tier 2** | `Planned` |
+| **Demo "Time Machine" Clock** | Dedicated toolbar for `is_demo_admin` when `DEMO_MODE=true`. | **Tier 2** | `Completed (Stage 3)` |
 | **Maturity Wall & Risk Dashboard** | Executive Chart.js visualization of deposits at risk and monthly tranches. | **Tier 2** | `Planned` |
 | **Earned Trust Score Calculator** | Low base (20) + evidence additions - rule deductions (0–100). | **Tier 2** | `Planned` |
 | **Bilingual Official Notices** | English and Hindi notice templates for official communication. | **Tier 2** | `Planned` |
 | **Renewal Lineage Chain** | Parent-child rollover graph; parent renews only when child is active. | **Tier 3** | `Planned` |
 | **Dual-Authorized Release Workflow**| Human-in-the-loop scrutiny checklist + authority sign-off. | **Tier 3** | `Planned` |
-| **Audit Verification & Tamper Test**| Linear-time chain verifier with live database tamper test. | **Tier 3** | `Planned` |
-| **Seed Script & Deployment** | 50-record synthetic seed dataset, Docker Compose orchestration. | **Tier 3** | `Planned` |
+| **Audit Verification & Tamper Test**| Linear-time chain verifier with live database tamper test. | **Tier 3** | `Completed (Stage 3)` |
+| **Seed Script & Deployment** | Multi-institution synthetic seed dataset, Docker Compose orchestration. | **Tier 3** | `Completed (Stage 3)` |
 | **Backup Demo Video** | Full 5-minute judge walkthrough recorded as backup deliverable. | **Tier 3** | `Planned` |
 | **Text Extraction / OCR Diff Viewer**| Native PDF text layer with Tesseract OCR fallback and visual diff. | **Tier 4** | `Planned` |
 | **QR-Verifiable Deposit Certificate**| Ed25519-signed public certificate omitting private bank secrets. | **Tier 4** | `Planned` |
 | **Explainable Lapse-Risk Ranking** | Urgency-weighted advisory ranking: `urgency * amount * (1 / trust)`. | **Tier 4** | `Planned` |
 | **Compliance Export Reports** | CSV and printable PDF report generation. | **Tier 4** | `Planned` |
-| **Interactive OpenAPI 3.1 Docs** | Full interactive REST documentation (`/docs`). | **Tier 4 (MUST)** | `Planned` |
+| **Interactive OpenAPI 3.1 Docs** | Full interactive REST documentation (`/docs`). | **Tier 4 (MUST)** | `Completed (Stage 1)` |
 | **Outbound Webhooks & AA Stub** | Webhook notifications & Account Aggregator sandbox blueprint. | **Tier 4 (STRETCH)**| `Planned` |
 
 ---
@@ -117,18 +119,18 @@ graph TD
 ---
 
 ## 🛠️ Tech Stack
-* **Full-Stack Application:** Single FastAPI application (Python 3.11+, Pydantic v2, SQLAlchemy 2.0 Async, PyJWT, Cryptography) serving both HTML and REST endpoints.
-* **UI & Interactivity:** Jinja2 templates + HTMX (dynamic, SPA-like partial DOM updates without client build pipelines) + Tailwind CSS + Lucide Icons.
+* **Full-Stack Application:** Single FastAPI application (Python 3.11, Pydantic v2, synchronous SQLAlchemy 2.0 with `psycopg`, PyJWT, Cryptography, Bcrypt) serving both HTML views and REST endpoints.
+* **UI & Interactivity:** Jinja2 templates + HTMX (dynamic, SPA-like partial DOM updates without client build pipelines) + Tailwind CSS + Lucide Icons. Local vendored static assets (`htmx.min.js`, `tailwind.min.js`) ensure 100% offline evaluation capability.
 * **Visualizations:** Chart.js (rendered on native HTML5 canvas for the Maturity Wall and regional risk exposure).
-* **Database:** PostgreSQL 16+ (Relational schema, JSONB metadata, revoked UPDATE/DELETE on audit table for application role).
-* **Scheduler:** APScheduler 3.x (Single-process async worker executing scans against `ClockService`).
-* **Security & Crypto:** `cryptography` (AES-256-GCM envelope encryption with master KEK, Ed25519 certificate signatures, SHA-256 canonical hash chains).
+* **Database & Roles:** PostgreSQL 16+ with strict role segregation: administrative migrations and seeding run under `fdr_owner`; application runtime executes strictly under `fdr_app_user` with `UPDATE`, `DELETE`, and `TRUNCATE` revoked on `audit_log`. Separate `fdr_sentinel_test` database for automated tests.
+* **Scheduler:** APScheduler 3.x (Single-process worker executing scans against `ClockService`).
+* **Security & Crypto:** `cryptography` (AES-256-GCM envelope encryption with master KEK, Ed25519 certificate signatures, SHA-256 canonical hash chains, Bcrypt password hashing with constant-time dummy timing mitigation, double-submit cookie CSRF).
 * **Document Processing:** PDF digital text-layer extraction (`pypdf` / `pdfplumber`) with Tesseract OCR fallback for scanned images.
-* **Containerization:** Docker & Docker Compose (single application container + PostgreSQL container).
+* **Containerization:** Docker & Docker Compose (single application container `fdr_sentinel_web` + PostgreSQL container `fdr_sentinel_db`).
 
 ---
 
-## 📁 Project Structure (Planned)
+## 📁 Project Structure
 
 ```text
 FDR-SENTINEL/
@@ -138,16 +140,15 @@ FDR-SENTINEL/
 ├── PROGRESS.md                     # Day-by-day roadmap, phase tracker, & decisions log
 ├── docker-compose.yml              # Container orchestration (FastAPI + PostgreSQL)
 ├── app/                            # Unified FastAPI Application
-│   ├── api/                        # REST endpoints (auth, instruments, scrutiny, audit, demo)
-│   ├── core/                       # Security, AES-256-GCM envelope crypto, ClockService
-│   ├── models/                     # SQLAlchemy ORM models (User, Institution, Instrument, Audit)
+│   ├── core/                       # Security, config, dependencies, database session
+│   ├── models/                     # SQLAlchemy ORM models (User, Institution, Instrument, Audit, Clock)
+│   ├── routers/                    # Health, auth, demo, pages, REST API
 │   ├── schemas/                    # Pydantic v2 validation contracts
-│   ├── services/                   # Discrepancy engine, trust score, hash chainer, scheduler
-│   ├── providers/                  # Pluggable verification providers (Mock, Manual, AA)
-│   ├── templates/                  # Jinja2 HTML templates (Dashboard, Scrutiny, Audit, Time Machine)
-│   └── static/                     # HTMX, Chart.js, Tailwind CSS, custom assets
-├── tests/                          # Automated test suite (6 evaluation scenarios)
-├── scripts/                        # Seed data generator (~50 institutions) & DB migrations
+│   ├── services/                   # ClockService, AuditService, DiscrepancyEngine, TrustScore
+│   ├── static/                     # Vendored HTMX, Tailwind, cropped brand icons, favicons
+│   └── templates/                  # Jinja2 templates (Base, Auth, Roles, Time Machine, Errors)
+├── tests/                          # Automated test suite (76 tests: auth, rbac, csrf, clock, audit, ui)
+├── scripts/                        # DB init, branding cropper, idempotent seed_users script
 ├── storage/                        # (Local Only) Encrypted document vault
 └── requirements.txt
 ```
@@ -155,7 +156,51 @@ FDR-SENTINEL/
 ---
 
 ## 💻 Setup and Run Instructions
-> **Notice:** The setup, environment configuration, database migration, and startup commands will be written here once implementation begins. No application code or dependencies have been installed yet.
+
+### 1. Prerequisites
+* **Docker Desktop** (with Linux containers enabled)
+* **Git** and PowerShell (or bash)
+
+### 2. Launch the Application Stack
+```powershell
+# Clone and enter the repository directory
+cd FDR-SENTINEL
+
+# Start PostgreSQL and FastAPI containers in detached mode
+docker compose up -d
+
+# Verify services are healthy
+docker compose ps
+```
+The services will be available at:
+* **Web Portal & Login:** [http://localhost:8000/login](http://localhost:8000/login)
+* **Interactive API Documentation:** [http://localhost:8000/docs](http://localhost:8000/docs)
+* **Health Check Probe:** [http://localhost:8000/healthz](http://localhost:8000/healthz)
+* **Cryptographic Audit Verification:** [http://localhost:8000/audit/verify](http://localhost:8000/audit/verify)
+
+### 3. Seed Database with Demo Accounts
+Run the idempotent seeding script inside the running web container. Provide a strong seed password (minimum 12 characters):
+```powershell
+docker compose exec -e SEED_PASSWORD=DevSeedPassword2026! web python scripts/seed_users.py
+```
+
+### 4. Demo Evaluation User Credentials
+
+| Username | Role | Assigned Entity / Context | Password | Capabilities |
+| :--- | :--- | :--- | :--- | :--- |
+| `demo.admin` | `AUDITOR` (`is_demo_admin=true`) | Hackathon Jury / Demo Administrator | `DevSeedPassword2026!` | Full evaluation access, Demo Time Machine controls, audit verification |
+| `scrutiny.officer` | `SCRUTINY_OFFICER` | AICTE Scrutiny Officer | `DevSeedPassword2026!` | Scrutiny review console, discrepancy inspection, verification |
+| `approver.authority` | `APPROVER_AUTHORITY` | AICTE Approval Bureau Head | `DevSeedPassword2026!` | Competent authority workstation, deposit release authorization |
+| `auditor` | `AUDITOR` | Central Vigilance / Chief Auditor | `DevSeedPassword2026!` | Cryptographic chain verification, audit trail inspection |
+| `inst.admin` | `INSTITUTION_ADMIN` | Delhi Technological University | `DevSeedPassword2026!` | College FDR portal, submission uploads, status tracking |
+| `inst.admin2` | `INSTITUTION_ADMIN` | Sardar Patel Institute of Technology | `DevSeedPassword2026!` | Isolated second institution (tests boundary and isolation) |
+
+### 5. Running the Test Suite
+The automated test suite executes strictly against the isolated test database (`fdr_sentinel_test`), never modifying development records:
+```powershell
+docker compose exec web pytest -q
+```
+*Current test suite: **76 passed** (including static temporal integrity checks, constant-time dummy timing mitigation, CSRF double-submit tests, and institution tenancy scoping).*
 
 ---
 
