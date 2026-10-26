@@ -603,6 +603,97 @@
         </div>
     </div>
 
+    <!-- Section: Renewal Lineage & Rollover History -->
+    {% if lineage and (lineage | length > 1 or can_start_renewal or live_child) %}
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+        <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Renewal Lineage & Rollover History</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Parent-child lineage tracking fixed deposit roll-overs across regulatory cycles.</p>
+            </div>
+            {% if can_start_renewal %}
+            <a href="/institution/instruments/{{ instrument.id }}/renew" id="start-renewal-btn" class="inline-flex items-center px-3 py-1.5 bg-aicte-600 hover:bg-aicte-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
+                Start Renewal
+            </a>
+            {% elif live_child %}
+            <div class="inline-flex items-center px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-xs font-semibold text-amber-900">
+                <span>Renewal in progress:</span>
+                <a href="/institution/instruments/{{ live_child.id }}" class="ml-1.5 underline font-bold hover:text-amber-700">
+                    {{ live_child.fdr_number or "Child Deposit" }} ({{ live_child.status }})
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="p-6 space-y-4">
+            <!-- Ordered Chain -->
+            <div class="overflow-x-auto">
+                <ol class="flex items-center space-x-2 sm:space-x-4 min-w-max py-2">
+                    {% for item in lineage %}
+                    <li class="flex items-center space-x-2">
+                        <div class="p-3 rounded-lg border {% if item.is_current %}border-aicte-500 bg-aicte-50/50 ring-2 ring-aicte-400{% else %}border-slate-200 bg-slate-50 hover:bg-slate-100{% endif %} transition min-w-[200px]">
+                            <div class="flex items-center justify-between space-x-2">
+                                <span class="text-[10px] font-bold uppercase tracking-wider {% if item.is_current %}text-aicte-700{% else %}text-slate-500{% endif %}">
+                                    Seq #{{ item.renewal_sequence }} {% if item.is_current %}(Current){% endif %}
+                                </span>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold
+                                    {% if item.status == 'ACTIVE' %}bg-emerald-100 text-emerald-800
+                                    {% elif item.status == 'RENEWED' %}bg-teal-100 text-teal-800
+                                    {% elif item.status == 'MATURED' %}bg-amber-100 text-amber-800
+                                    {% elif item.status == 'EXPIRING' %}bg-yellow-100 text-yellow-800
+                                    {% elif item.status == 'RELEASED' %}bg-blue-100 text-blue-800
+                                    {% elif item.status == 'REJECTED' %}bg-rose-100 text-rose-800
+                                    {% else %}bg-slate-200 text-slate-800{% endif %}">
+                                    {{ item.status }}
+                                </span>
+                            </div>
+                            <div class="mt-1">
+                                <a href="/institution/instruments/{{ item.id }}" class="text-xs font-bold text-slate-900 hover:text-aicte-600 font-mono">
+                                    {{ item.fdr_number or "—" }}
+                                </a>
+                            </div>
+                            <div class="mt-1 text-[11px] text-slate-600 flex items-center space-x-2">
+                                <span>{{ item.principal_amount | format_inr }}</span>
+                                <span>•</span>
+                                <span>{{ item.maturity_date | format_date }}</span>
+                            </div>
+                        </div>
+                        {% if not loop.last %}
+                        <div class="text-slate-400 font-bold px-1 text-sm">→</div>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ol>
+            </div>
+
+            <!-- Rollover Principal Comparison -->
+            {% if lineage | length > 1 %}
+            <div class="pt-3 border-t border-slate-100 text-xs text-slate-600 space-y-1">
+                {% for i in range(1, lineage | length) %}
+                {% set parent_node = lineage[i-1] %}
+                {% set child_node = lineage[i] %}
+                <div class="flex items-center space-x-2">
+                    <span class="text-slate-500">Rollover (Seq #{{ parent_node.renewal_sequence }} → #{{ child_node.renewal_sequence }}):</span>
+                    <span class="font-mono font-medium text-slate-900">{{ parent_node.principal_amount | format_inr }}</span>
+                    <span>→</span>
+                    <span class="font-mono font-medium text-slate-900">{{ child_node.principal_amount | format_inr }}</span>
+                    {% if child_node.principal_amount is not none and parent_node.principal_amount is not none %}
+                        {% if child_node.principal_amount < parent_node.principal_amount %}
+                        <span class="text-rose-600 text-[11px] font-semibold">(Principal reduced by {{ (parent_node.principal_amount - child_node.principal_amount) | format_inr }})</span>
+                        {% elif child_node.principal_amount > parent_node.principal_amount %}
+                        <span class="text-emerald-600 text-[11px] font-semibold">(Principal increased by {{ (child_node.principal_amount - parent_node.principal_amount) | format_inr }})</span>
+                        {% else %}
+                        <span class="text-slate-500 text-[11px]">(Equal principal)</span>
+                        {% endif %}
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Section 4: Lifecycle History & Audit Timeline -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">

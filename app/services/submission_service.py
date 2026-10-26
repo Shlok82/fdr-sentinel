@@ -28,6 +28,8 @@ class FDRSubmissionService:
         actor_ip: Optional[str] = None,
         vault_base: Optional[str] = None,
         master_key_b64: Optional[str] = None,
+        previous_instrument_id: Optional[uuid.UUID] = None,
+        renewal_sequence: int = 1,
     ) -> Instrument:
         """Atomically processes an FDR submission in ONE transaction.
         
@@ -70,8 +72,8 @@ class FDRSubmissionService:
                 tenure_months=form.cleaned_data.get("tenure_months"),
                 joint_account_holder=form.cleaned_data.get("joint_account_holder"),
                 status=InstrumentState.SUBMITTED.value,
-                previous_instrument_id=None,
-                renewal_sequence=1,
+                previous_instrument_id=previous_instrument_id,
+                renewal_sequence=renewal_sequence,
                 trust_score=20,  # Baseline trust floor
                 trust_score_breakdown={"base": 20, "note": "Initial submission baseline"},
                 created_at=current_time,
@@ -132,6 +134,8 @@ class FDRSubmissionService:
                     "bank_name": instrument.bank_name,
                     "principal_amount": str(instrument.principal_amount) if instrument.principal_amount is not None else None,
                     "status": "SUBMITTED",
+                    "previous_instrument_id": str(previous_instrument_id) if previous_instrument_id else None,
+                    "renewal_sequence": renewal_sequence,
                 },
                 actor_ip=actor_ip,
             )

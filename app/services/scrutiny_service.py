@@ -13,6 +13,7 @@ from app.services.instrument_fsm import (
     transition,
     Actor,
     InstrumentState,
+    SYSTEM_ACTOR,
     TERMINAL_STATES,
     InvalidStateTransitionError,
     UnauthorizedTransitionError,
@@ -407,13 +408,54 @@ class ScrutinyService:
         )
 
         actor = Actor.from_user(user)
-        return transition(
+        activated_inst = transition(
             session=db,
             instrument_id=instrument.id,
             to_state=InstrumentState.ACTIVE.value,
             actor=actor,
             justification=clean_just,
         )
+
+        # Renewal activation hook: if this instrument is a renewal child, transition parent
+        if activated_inst.previous_instrument_id:
+            parent = (
+                db.query(Instrument)
+                .filter(Instrument.id == activated_inst.previous_instrument_id)
+                .with_for_update()
+                .first()
+            )
+            if parent:
+                if parent.status in ("EXPIRING", "MATURED"):
+                    parent_just = (
+                        f"Superseded by renewal child instrument {activated_inst.fdr_number or 'Child'} "
+                        f"(ID: {activated_inst.id})."
+                    )
+                    transition(
+                        session=db,
+                        instrument_id=parent.id,
+                        to_state=InstrumentState.RENEWED.value,
+                        actor=SYSTEM_ACTOR,
+                        justification=parent_just,
+                    )
+                else:
+                    AuditService.append(
+                        session=db,
+                        entity_type="INSTRUMENT",
+                        entity_id=parent.id,
+                        action="RENEWAL_PARENT_NOT_RENEWED",
+                        actor_user_id=user.id if user else None,
+                        actor_role=user.role if user else "SYSTEM",
+                        details={
+                            "parent_id": str(parent.id),
+                            "parent_status": parent.status,
+                            "child_id": str(activated_inst.id),
+                            "child_fdr_number": activated_inst.fdr_number,
+                            "reason": f"Parent status is '{parent.status}', expected 'EXPIRING' or 'MATURED'.",
+                        },
+                        actor_ip=actor_ip,
+                    )
+
+        return activated_inst
 
     @classmethod
     def reject_instrument(

@@ -40,6 +40,14 @@ from app.services.scrutiny_service import (
     StaleStateError,
     JustificationError,
 )
+from app.services.renewal_service import (
+    start_renewal,
+    RenewalError,
+    RenewalNotFoundError,
+    RenewalStateError,
+    LiveChildExistsError,
+)
+from app.services.lineage import get_lineage
 
 router = APIRouter(tags=["Instruments & Custody Vault"])
 
@@ -232,6 +240,207 @@ async def submit_instrument_action(
     )
 
 
+@router.get("/institution/instruments/{parent_id}/renew", response_class=HTMLResponse)
+def get_renew_instrument_form(
+    request: Request,
+    parent_id: uuid.UUID,
+    user: User = Depends(require_roles("INSTITUTION_ADMIN")),
+    db: Session = Depends(get_db),
+):
+    """Renders the FDR Renewal Rollover form pre-filling bank parameters from the parent."""
+    parent = db.query(Instrument).filter(Instrument.id == parent_id).first()
+    if not parent or parent.institution_id != user.institution_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instrument not found.")
+
+    if parent.status == "RELEASE_REQUESTED":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot start renewal: a security deposit release request is currently in progress."
+        )
+
+    if parent.status not in ("EXPIRING", "MATURED"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot start renewal: instrument is in status '{parent.status}', expected 'EXPIRING' or 'MATURED'."
+        )
+
+    live_child = (
+        db.query(Instrument)
+        .filter(Instrument.previous_instrument_id == parent.id, Instrument.status != "REJECTED")
+        .first()
+    )
+    if live_child:
+        child_fdr = live_child.fdr_number or f"ID {live_child.id}"
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"A renewal is already in progress for this deposit (Child: {child_fdr}, status: {live_child.status})."
+        )
+
+    institution = db.query(Institution).filter(Institution.id == user.institution_id).first()
+    from app.routers.temporal import get_unread_notifications_count
+    unread_count = get_unread_notifications_count(db, user)
+
+    form_data = {
+        "bank_name": parent.bank_name or "",
+        "bank_branch": parent.bank_branch or "",
+        "ifsc_code": parent.ifsc_code or "",
+        "joint_account_holder": parent.joint_account_holder or "",
+    }
+
+    context = {
+        "request": request,
+        "user": user,
+        "institution": institution,
+        "form_data": form_data,
+        "errors": {},
+        "parent_instrument": parent,
+        "is_renewal": True,
+        "form_action": f"/institution/instruments/{parent.id}/renew",
+        "unread_notifications_count": unread_count,
+        "current_time": clock_service.display_time,
+        "is_simulated": clock_service.is_simulated,
+        "demo_mode": settings.DEMO_MODE,
+        "max_upload_mb": settings.MAX_UPLOAD_MB,
+        "simulated_date_str": clock_service.display_simulated_date,
+        "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
+    }
+    return templates.TemplateResponse("instruments/new.html", context)
+
+
+@router.post("/institution/instruments/{parent_id}/renew", response_class=Response, dependencies=[Depends(verify_csrf)])
+async def submit_renew_instrument_action(
+    request: Request,
+    parent_id: uuid.UUID,
+    fdr_number: Optional[str] = Form(None),
+    bank_name: Optional[str] = Form(None),
+    bank_branch: Optional[str] = Form(None),
+    ifsc_code: Optional[str] = Form(None),
+    principal_amount: Optional[str] = Form(None),
+    maturity_amount: Optional[str] = Form(None),
+    interest_rate_percent: Optional[str] = Form(None),
+    issue_date: Optional[str] = Form(None),
+    maturity_date: Optional[str] = Form(None),
+    tenure_months: Optional[str] = Form(None),
+    joint_account_holder: Optional[str] = Form(None),
+    scan_file: UploadFile = File(...),
+    csrf_token: Optional[str] = Form(None),
+    user: User = Depends(require_roles("INSTITUTION_ADMIN")),
+    db: Session = Depends(get_db),
+):
+    """Processes renewal FDR submission, attaching child to parent and recording RENEWAL_INITIATED."""
+    client_ip = get_client_ip(request)
+
+    parent = db.query(Instrument).filter(Instrument.id == parent_id).first()
+    if not parent or parent.institution_id != user.institution_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instrument not found.")
+
+    form = FDRSubmissionForm(
+        fdr_number=fdr_number,
+        bank_name=bank_name,
+        bank_branch=bank_branch,
+        ifsc_code=ifsc_code,
+        principal_amount=principal_amount,
+        maturity_amount=maturity_amount,
+        interest_rate_percent=interest_rate_percent,
+        issue_date=issue_date,
+        maturity_date=maturity_date,
+        tenure_months=tenure_months,
+        joint_account_holder=joint_account_holder,
+    )
+
+    file_bytes = b""
+    file_name = scan_file.filename or "upload.bin"
+    file_error = None
+
+    try:
+        limit_bytes = settings.MAX_UPLOAD_MB * 1024 * 1024
+        chunks = []
+        total_read = 0
+        while chunk := await scan_file.read(1024 * 64):
+            total_read += len(chunk)
+            if total_read > limit_bytes:
+                file_error = f"Uploaded file exceeds the maximum allowed limit of {settings.MAX_UPLOAD_MB} MB."
+                break
+            chunks.append(chunk)
+
+        if not file_error:
+            file_bytes = b"".join(chunks)
+            if len(file_bytes) == 0:
+                file_error = "Uploaded document is empty (0 bytes)."
+            else:
+                validate_file_content(file_bytes, file_name)
+    except ValueError as exc:
+        file_error = str(exc)
+    except Exception as exc:
+        file_error = f"Error processing uploaded file: {str(exc)}"
+
+    if file_error:
+        form.errors["scan_file"] = file_error
+
+    if not form.is_valid:
+        institution = db.query(Institution).filter(Institution.id == user.institution_id).first()
+        context = {
+            "request": request,
+            "user": user,
+            "institution": institution,
+            "form_data": form.raw_fields,
+            "errors": form.errors,
+            "parent_instrument": parent,
+            "is_renewal": True,
+            "form_action": f"/institution/instruments/{parent.id}/renew",
+            "current_time": clock_service.display_time,
+            "is_simulated": clock_service.is_simulated,
+            "demo_mode": settings.DEMO_MODE,
+            "max_upload_mb": settings.MAX_UPLOAD_MB,
+            "simulated_date_str": clock_service.display_simulated_date,
+            "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
+        }
+        return templates.TemplateResponse("instruments/new.html", context, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+    try:
+        child = start_renewal(
+            session=db,
+            parent_id=parent.id,
+            form_data=form,
+            upload=(file_bytes, file_name),
+            actor=user,
+            actor_ip=client_ip,
+        )
+        db.commit()
+    except RenewalNotFoundError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instrument not found.")
+    except (RenewalStateError, LiveChildExistsError) as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    except Exception as exc:
+        db.rollback()
+        institution = db.query(Institution).filter(Institution.id == user.institution_id).first()
+        form.errors["general"] = f"Failed to submit renewal instrument: {str(exc)}"
+        context = {
+            "request": request,
+            "user": user,
+            "institution": institution,
+            "form_data": form.raw_fields,
+            "errors": form.errors,
+            "parent_instrument": parent,
+            "is_renewal": True,
+            "form_action": f"/institution/instruments/{parent.id}/renew",
+            "current_time": clock_service.display_time,
+            "is_simulated": clock_service.is_simulated,
+            "demo_mode": settings.DEMO_MODE,
+            "max_upload_mb": settings.MAX_UPLOAD_MB,
+            "simulated_date_str": clock_service.display_simulated_date,
+            "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
+        }
+        return templates.TemplateResponse("instruments/new.html", context, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return RedirectResponse(
+        url=f"/institution/instruments/{child.id}",
+        status_code=status.HTTP_303_SEE_OTHER
+    )
+
+
 @router.get("/institution/instruments/{instrument_id}", response_class=HTMLResponse)
 def view_institution_instrument_detail(
     request: Request,
@@ -274,6 +483,18 @@ def view_institution_instrument_detail(
     if instrument.maturity_date:
         days_to_maturity = (instrument.maturity_date - clock_service.today()).days
 
+    lineage = get_lineage(db, instrument)
+    live_child = (
+        db.query(Instrument)
+        .filter(Instrument.previous_instrument_id == instrument.id, Instrument.status != "REJECTED")
+        .first()
+    )
+    can_start_renewal = (
+        instrument.status in ("EXPIRING", "MATURED")
+        and live_child is None
+        and instrument.status != "RELEASE_REQUESTED"
+    )
+
     from app.routers.temporal import get_unread_notifications_count
     unread_count = get_unread_notifications_count(db, user)
 
@@ -288,6 +509,9 @@ def view_institution_instrument_detail(
         "tickets": tickets,
         "alerts": instrument_alerts,
         "days_to_maturity": days_to_maturity,
+        "lineage": lineage,
+        "live_child": live_child,
+        "can_start_renewal": can_start_renewal,
         "unread_notifications_count": unread_count,
         "current_time": clock_service.display_time,
         "is_simulated": clock_service.is_simulated,
@@ -498,6 +722,8 @@ def _render_staff_case_page(
     if instrument.maturity_date:
         days_to_maturity = (instrument.maturity_date - clock_service.today()).days
 
+    lineage = get_lineage(db, instrument)
+
     from app.routers.temporal import get_unread_notifications_count
     unread_count = get_unread_notifications_count(db, user)
 
@@ -506,6 +732,7 @@ def _render_staff_case_page(
         "user": user,
         "institution": institution,
         "instrument": instrument,
+        "lineage": lineage,
         "prov_map": prov_map,
         "documents": documents,
         "timeline": timeline,
