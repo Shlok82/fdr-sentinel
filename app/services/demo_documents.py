@@ -12,6 +12,10 @@ def generate_demo_fdr_pdf(scenario_data: Dict[str, Any]) -> bytes:
     4. Compact size (< 15 KB, well below the 10 MB cap).
     """
     pdf = FPDF(orientation="P", unit="mm", format="A4")
+    if "producer" in scenario_data:
+        pdf.set_producer(scenario_data["producer"])
+    if "creator" in scenario_data:
+        pdf.set_creator(scenario_data["creator"])
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
