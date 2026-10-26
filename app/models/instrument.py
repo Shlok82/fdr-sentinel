@@ -37,3 +37,8 @@ class Instrument(Base):
             name="ck_instruments_status_fsm",
         ),
     )
+
+    @property
+    def amount_inr(self):
+        return self.principal_amount
+

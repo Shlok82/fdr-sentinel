@@ -215,6 +215,21 @@
                         </td>
                         <td class="px-6 py-4">
                             <div class="flex flex-wrap items-center gap-1.5">
+                                {% if item.instrument.status == 'RELEASE_REQUESTED' %}
+                                    {% if item.scrutiny_recommendation == 'RECOMMENDED' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                        Key 1: Recommended
+                                    </span>
+                                    {% elif item.scrutiny_recommendation == 'NOT_RECOMMENDED' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                                        Key 1: Not Recommended
+                                    </span>
+                                    {% else %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                        Key 1: Pending Review
+                                    </span>
+                                    {% endif %}
+                                {% endif %}
                                 {% if item.rejection_recommended %}
                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
                                     Officer Recommends Rejection
@@ -225,7 +240,7 @@
                                     {{ item.blocking_count }} Blocking
                                 </span>
                                 {% endif %}
-                                {% if not item.rejection_recommended and item.blocking_count == 0 %}
+                                {% if item.instrument.status != 'RELEASE_REQUESTED' and not item.rejection_recommended and item.blocking_count == 0 %}
                                 <span class="text-slate-400 text-[11px]">Normal queue</span>
                                 {% endif %}
                             </div>

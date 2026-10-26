@@ -12,6 +12,7 @@ from app.models.institution import Institution
 from app.models.instrument import Instrument
 from app.models.discrepancy import DiscrepancyTicket
 from app.models.scrutiny import ScrutinyNote
+from app.models.release import ReleaseRequest
 from app.services.clock_service import clock_service
 from app.services.audit_service import verify_chain
 from app.services.instrument_fsm import InstrumentState, compute_status_counts, ALL_STATES
@@ -253,6 +254,12 @@ def approver_workspace(
         .all()
     )
 
+    release_recs = dict(
+        db.query(ReleaseRequest.instrument_id, ReleaseRequest.scrutiny_recommendation)
+        .filter(ReleaseRequest.authority_decision == "PENDING")
+        .all()
+    )
+
     items = []
     for inst, inst_name in queue_rows:
         items.append({
@@ -260,6 +267,7 @@ def approver_workspace(
             "institution_name": inst_name,
             "blocking_count": blocking_ticket_counts.get(inst.id, 0),
             "rejection_recommended": inst.id in rejection_recommended_ids,
+            "scrutiny_recommendation": release_recs.get(inst.id),
         })
 
     ctx["items"] = items

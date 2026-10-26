@@ -19,6 +19,7 @@ from app.models.scrutiny import ScrutinyNote
 from app.models.verification import VerificationRecord
 from app.models.audit import AuditLog
 from app.models.alert import Alert
+from app.models.release import ReleaseRequest
 from app.schemas.instrument import FDRSubmissionForm
 from app.services.submission_service import FDRSubmissionService
 from app.services.document_service import DocumentService, validate_file_content
@@ -30,6 +31,7 @@ from app.services.instrument_fsm import (
     compute_status_counts,
     ALL_STATES,
     TERMINAL_STATES,
+    Actor,
 )
 from app.services.verification.mock_bank import MockFailureMode
 from app.services.scrutiny_service import (
@@ -46,6 +48,18 @@ from app.services.renewal_service import (
     RenewalNotFoundError,
     RenewalStateError,
     LiveChildExistsError,
+)
+from app.services.release_service import (
+    request_release,
+    record_recommendation,
+    decide_release,
+    ReleaseError,
+    ReleaseNotFoundError,
+    ReleasePermissionError,
+    ReleaseStateError,
+    ReleaseChecklistIncompleteError,
+    SecondKeyMissingError,
+    ReleaseAlreadyDecidedError,
 )
 from app.services.lineage import get_lineage
 
@@ -462,7 +476,12 @@ def view_institution_instrument_detail(
 
     institution = db.query(Institution).filter(Institution.id == instrument.institution_id).first()
     provenance_rows = db.query(FieldProvenance).filter(FieldProvenance.instrument_id == instrument.id).all()
-    documents = db.query(Document).filter(Document.instrument_id == instrument.id).all()
+    # Scoping: institution users cannot view or download internal RELEASE_EVIDENCE
+    documents = (
+        db.query(Document)
+        .filter(Document.instrument_id == instrument.id, Document.document_type != "RELEASE_EVIDENCE")
+        .all()
+    )
 
     # Map provenance by field_name for easy template lookups
     prov_map = {p.field_name: p for p in provenance_rows}
@@ -495,6 +514,21 @@ def view_institution_instrument_detail(
         and instrument.status != "RELEASE_REQUESTED"
     )
 
+    latest_release_request = (
+        db.query(ReleaseRequest)
+        .filter(ReleaseRequest.instrument_id == instrument.id)
+        .order_by(ReleaseRequest.created_at.desc())
+        .first()
+    )
+    has_pending_release = (
+        latest_release_request is not None and latest_release_request.authority_decision == "PENDING"
+    )
+    can_request_release = (
+        instrument.status in ("ACTIVE", "EXPIRING", "MATURED")
+        and not has_pending_release
+        and live_child is None
+    )
+
     from app.routers.temporal import get_unread_notifications_count
     unread_count = get_unread_notifications_count(db, user)
 
@@ -512,6 +546,8 @@ def view_institution_instrument_detail(
         "lineage": lineage,
         "live_child": live_child,
         "can_start_renewal": can_start_renewal,
+        "latest_release_request": latest_release_request,
+        "can_request_release": can_request_release,
         "unread_notifications_count": unread_count,
         "current_time": clock_service.display_time,
         "is_simulated": clock_service.is_simulated,
@@ -547,7 +583,7 @@ def download_institution_document(
         .filter(Document.id == document_id, Document.instrument_id == instrument.id)
         .first()
     )
-    if not document:
+    if not document or document.document_type == "RELEASE_EVIDENCE":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
     # 2. Decrypt in memory and verify SHA-256
@@ -724,6 +760,13 @@ def _render_staff_case_page(
 
     lineage = get_lineage(db, instrument)
 
+    latest_release_request = (
+        db.query(ReleaseRequest)
+        .filter(ReleaseRequest.instrument_id == instrument.id)
+        .order_by(ReleaseRequest.created_at.desc())
+        .first()
+    )
+
     from app.routers.temporal import get_unread_notifications_count
     unread_count = get_unread_notifications_count(db, user)
 
@@ -733,6 +776,7 @@ def _render_staff_case_page(
         "institution": institution,
         "instrument": instrument,
         "lineage": lineage,
+        "latest_release_request": latest_release_request,
         "prov_map": prov_map,
         "documents": documents,
         "timeline": timeline,
@@ -1089,3 +1133,252 @@ def download_staff_document(
         "Pragma": "no-cache",
     }
     return StreamingResponse(io.BytesIO(plaintext), media_type=document.file_mime_type, headers=headers)
+
+
+# -----------------------------------------------------------------------------
+# Dual-Key Release Workflow Routes
+# -----------------------------------------------------------------------------
+
+@router.post("/institution/instruments/{instrument_id}/request-release", response_class=Response, dependencies=[Depends(verify_csrf)])
+async def request_instrument_release_action(
+    request: Request,
+    instrument_id: uuid.UUID,
+    justification: str = Form(...),
+    user: User = Depends(require_roles("INSTITUTION_ADMIN")),
+    db: Session = Depends(get_db)
+):
+    """Processes request for security deposit release by institution admin."""
+    actor = Actor.from_user(user)
+    try:
+        request_release(
+            session=db,
+            instrument_id=instrument_id,
+            actor=actor,
+            justification=justification,
+        )
+        db.commit()
+    except ReleaseNotFoundError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Instrument not found.")
+    except ReleasePermissionError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Unauthorized.")
+    except ReleaseStateError as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+    return RedirectResponse(
+        url=f"/institution/instruments/{instrument_id}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.get("/institution/instruments/{instrument_id}/release-order", response_class=HTMLResponse)
+def view_institution_release_order(
+    request: Request,
+    instrument_id: uuid.UUID,
+    user: User = Depends(require_roles("INSTITUTION_ADMIN")),
+    db: Session = Depends(get_db)
+):
+    """Renders verifiable release order strictly for owning institution if status is RELEASED."""
+    instrument = (
+        db.query(Instrument)
+        .filter(Instrument.id == instrument_id, Instrument.institution_id == user.institution_id)
+        .first()
+    )
+    if not instrument or instrument.status != "RELEASED":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Release order not found.")
+
+    release_req = (
+        db.query(ReleaseRequest)
+        .filter(ReleaseRequest.instrument_id == instrument.id, ReleaseRequest.authority_decision == "APPROVED")
+        .order_by(ReleaseRequest.created_at.desc())
+        .first()
+    )
+    if not release_req:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Release order not found.")
+
+    institution = db.query(Institution).filter(Institution.id == instrument.institution_id).first()
+    requester = db.query(User).filter(User.id == release_req.requested_by_user_id).first() if release_req.requested_by_user_id else None
+    scrutiny_officer = db.query(User).filter(User.id == release_req.scrutiny_officer_id).first() if release_req.scrutiny_officer_id else None
+    approver_user = db.query(User).filter(User.id == release_req.approver_authority_id).first() if release_req.approver_authority_id else None
+
+    context = {
+        "request": request,
+        "user": user,
+        "instrument": instrument,
+        "institution": institution,
+        "release_request": release_req,
+        "requester": requester,
+        "scrutiny_officer": scrutiny_officer,
+        "approver_user": approver_user,
+        "is_staff": False,
+        "current_time": clock_service.display_time,
+        "is_simulated": clock_service.is_simulated,
+        "demo_mode": settings.DEMO_MODE,
+        "simulated_date_str": clock_service.display_simulated_date,
+        "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
+    }
+    return templates.TemplateResponse("instruments/release_order.html", context)
+
+
+@router.get("/instruments/{instrument_id}/release-order", response_class=HTMLResponse)
+def view_staff_release_order(
+    request: Request,
+    instrument_id: uuid.UUID,
+    user: User = Depends(require_roles("SCRUTINY_OFFICER", "APPROVER_AUTHORITY", "AUDITOR", "DEMO_ADMIN")),
+    db: Session = Depends(get_db)
+):
+    """Renders verifiable release order with full audit details for authorized staff."""
+    instrument = db.query(Instrument).filter(Instrument.id == instrument_id).first()
+    if not instrument or instrument.status != "RELEASED":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Release order not found.")
+
+    release_req = (
+        db.query(ReleaseRequest)
+        .filter(ReleaseRequest.instrument_id == instrument.id, ReleaseRequest.authority_decision == "APPROVED")
+        .order_by(ReleaseRequest.created_at.desc())
+        .first()
+    )
+    if not release_req:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Release order not found.")
+
+    institution = db.query(Institution).filter(Institution.id == instrument.institution_id).first()
+    requester = db.query(User).filter(User.id == release_req.requested_by_user_id).first() if release_req.requested_by_user_id else None
+    scrutiny_officer = db.query(User).filter(User.id == release_req.scrutiny_officer_id).first() if release_req.scrutiny_officer_id else None
+    approver_user = db.query(User).filter(User.id == release_req.approver_authority_id).first() if release_req.approver_authority_id else None
+
+    context = {
+        "request": request,
+        "user": user,
+        "instrument": instrument,
+        "institution": institution,
+        "release_request": release_req,
+        "requester": requester,
+        "scrutiny_officer": scrutiny_officer,
+        "approver_user": approver_user,
+        "is_staff": True,
+        "current_time": clock_service.display_time,
+        "is_simulated": clock_service.is_simulated,
+        "demo_mode": settings.DEMO_MODE,
+        "simulated_date_str": clock_service.display_simulated_date,
+        "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
+    }
+    return templates.TemplateResponse("instruments/release_order.html", context)
+
+
+@router.post("/scrutiny/release-requests/{request_id}/recommend", response_class=Response, dependencies=[Depends(verify_csrf)])
+async def record_release_recommendation_action(
+    request: Request,
+    request_id: uuid.UUID,
+    recommendation: str = Form(...),
+    justification: str = Form(...),
+    course_cycle_completed: Optional[str] = Form(None),
+    no_student_grievances_pending: Optional[str] = Form(None),
+    no_vigilance_inquiry_active: Optional[str] = Form(None),
+    regional_inspection_cleared: Optional[str] = Form(None),
+    evidence_file: Optional[UploadFile] = File(None),
+    user: User = Depends(require_roles("SCRUTINY_OFFICER")),
+    db: Session = Depends(get_db)
+):
+    """Processes scrutiny officer statutory checklist review and recommendation."""
+    checklist = {
+        "course_cycle_completed": course_cycle_completed in ("true", "True", "on", "1"),
+        "no_student_grievances_pending": no_student_grievances_pending in ("true", "True", "on", "1"),
+        "no_vigilance_inquiry_active": no_vigilance_inquiry_active in ("true", "True", "on", "1"),
+        "regional_inspection_cleared": regional_inspection_cleared in ("true", "True", "on", "1"),
+    }
+    actor = Actor.from_user(user)
+
+    upload_data = None
+    if evidence_file and getattr(evidence_file, "filename", None):
+        content = await evidence_file.read()
+        if content:
+            upload_data = (content, evidence_file.filename)
+
+    try:
+        file_obj = None
+        if upload_data:
+            file_obj = io.BytesIO(upload_data[0])
+            file_obj.filename = upload_data[1]
+
+        rel_req = record_recommendation(
+            session=db,
+            request_id=request_id,
+            actor=actor,
+            checklist=checklist,
+            recommendation=recommendation,
+            justification=justification,
+            evidence_upload=file_obj,
+        )
+        db.commit()
+        inst_id = rel_req.instrument_id
+    except ReleaseNotFoundError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Release request not found.")
+    except (ReleaseStateError, ReleaseChecklistIncompleteError, ReleaseAlreadyDecidedError) as exc:
+        db.rollback()
+        req = db.query(ReleaseRequest).filter(ReleaseRequest.id == request_id).first()
+        inst_id = req.instrument_id if req else None
+        if inst_id:
+            return RedirectResponse(
+                url=f"/instruments/{inst_id}?error={quote_plus(str(exc))}",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+    return RedirectResponse(
+        url=f"/instruments/{inst_id}?success=Recommendation+recorded+successfully",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.post("/approver/release-requests/{request_id}/decide", response_class=Response, dependencies=[Depends(verify_csrf)])
+async def decide_release_action(
+    request: Request,
+    request_id: uuid.UUID,
+    decision: str = Form(...),
+    justification: str = Form(...),
+    user: User = Depends(require_roles("APPROVER_AUTHORITY")),
+    db: Session = Depends(get_db)
+):
+    """Processes final release decision by competent authority."""
+    actor = Actor.from_user(user)
+    try:
+        rel_req = decide_release(
+            session=db,
+            request_id=request_id,
+            actor=actor,
+            decision=decision,
+            justification=justification,
+        )
+        db.commit()
+        inst_id = rel_req.instrument_id
+    except ReleaseNotFoundError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Release request not found.")
+    except (SecondKeyMissingError, ReleaseStateError, ReleaseAlreadyDecidedError) as exc:
+        db.rollback()
+        req = db.query(ReleaseRequest).filter(ReleaseRequest.id == request_id).first()
+        inst_id = req.instrument_id if req else None
+        if inst_id:
+            return RedirectResponse(
+                url=f"/instruments/{inst_id}?error={quote_plus(str(exc))}",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+    return RedirectResponse(
+        url=f"/instruments/{inst_id}?success=Decision+recorded+successfully",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+

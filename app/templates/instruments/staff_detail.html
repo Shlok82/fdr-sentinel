@@ -131,6 +131,200 @@
         </div>
     </div>
 
+    <!-- Released Official Order Banner -->
+    {% if instrument.status == "RELEASED" %}
+    <div class="rounded-xl border border-zinc-300 bg-zinc-50 p-4 shadow-sm text-zinc-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="flex items-center space-x-3">
+            <span class="inline-block w-3 h-3 rounded-full bg-zinc-600"></span>
+            <div>
+                <div class="text-sm font-bold">Security deposit released on {{ latest_release_request.decision_timestamp | format_date if latest_release_request and latest_release_request.decision_timestamp else instrument.updated_at | format_date }}</div>
+                <div class="text-xs text-zinc-600">Dual-key authorization sealed and completed with cryptographic hash integrity.</div>
+            </div>
+        </div>
+        <a href="/instruments/{{ instrument.id }}/release-order"
+           class="inline-flex items-center px-4 py-2 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition">
+            View Official Release Order
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Dual-Key Release Workflow Action Panel -->
+    {% if instrument.status == "RELEASE_REQUESTED" and latest_release_request %}
+    <div class="bg-white rounded-xl border-2 border-yellow-300 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-yellow-200 bg-yellow-50/70 flex justify-between items-center">
+            <div>
+                <h2 class="text-sm font-bold text-yellow-950 uppercase tracking-wider">Dual-Key Security Deposit Release Workflow</h2>
+                <p class="text-xs text-yellow-800 mt-0.5">High-risk release authorization requiring both Scrutiny statutory clearance and Authority sign-off.</p>
+            </div>
+            <span class="text-xs font-bold px-2.5 py-1 rounded bg-yellow-100 border border-yellow-300 text-yellow-900 font-mono">
+                RELEASE_REQUESTED
+            </span>
+        </div>
+
+        <div class="p-6 space-y-6">
+            <!-- Institution Request Details -->
+            <div class="p-4 bg-slate-50 rounded-lg border border-slate-200 text-xs">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="font-bold text-slate-900">Institution Request Justification</span>
+                    <span class="text-slate-500 font-mono">{{ latest_release_request.requested_at | format_datetime }} IST</span>
+                </div>
+                <div class="text-slate-800 bg-white p-2.5 rounded border border-slate-200 italic font-serif mt-1">
+                    "{{ latest_release_request.institution_justification }}"
+                </div>
+            </div>
+
+            <!-- Scrutiny Officer Verification (Key 1) -->
+            <div class="p-4 rounded-lg border {% if latest_release_request.scrutiny_recorded_at %}bg-teal-50/50 border-teal-200{% else %}bg-slate-50 border-slate-200{% endif %}">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">Key 1: Statutory Scrutiny Clearance</h3>
+                    {% if latest_release_request.scrutiny_recorded_at %}
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold {% if latest_release_request.scrutiny_recommendation == 'RECOMMENDED' %}bg-emerald-100 text-emerald-800 border border-emerald-300{% else %}bg-rose-100 text-rose-800 border border-rose-300{% endif %}">
+                        {{ latest_release_request.scrutiny_recommendation }}
+                    </span>
+                    {% else %}
+                    <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800">
+                        Pending Scrutiny Review
+                    </span>
+                    {% endif %}
+                </div>
+
+                {% if latest_release_request.scrutiny_recorded_at %}
+                <!-- Scrutiny Record Read-Only Display -->
+                <div class="space-y-2 text-xs">
+                    <div class="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                        <div>Course cycle completed: <strong>{{ "✓ Cleared" if latest_release_request.statutory_checklist.get("course_cycle_completed") else "✗ Not cleared" }}</strong></div>
+                        <div>No student grievances pending: <strong>{{ "✓ Cleared" if latest_release_request.statutory_checklist.get("no_student_grievances_pending") else "✗ Not cleared" }}</strong></div>
+                        <div>No vigilance inquiry active: <strong>{{ "✓ Cleared" if latest_release_request.statutory_checklist.get("no_vigilance_inquiry_active") else "✗ Not cleared" }}</strong></div>
+                        <div>Regional inspection cleared: <strong>{{ "✓ Cleared" if latest_release_request.statutory_checklist.get("regional_inspection_cleared") else "✗ Not cleared" }}</strong></div>
+                    </div>
+                    <div class="text-slate-800 bg-white p-2 rounded border border-slate-200 italic font-serif">
+                        "{{ latest_release_request.scrutiny_justification }}"
+                    </div>
+                    <div class="flex justify-between items-center text-[11px] text-slate-500 pt-1">
+                        <span>Recorded by Officer on {{ latest_release_request.scrutiny_recorded_at | format_datetime }} IST</span>
+                        {% if latest_release_request.scrutiny_evidence_document_id %}
+                        <a href="/instruments/{{ instrument.id }}/documents/{{ latest_release_request.scrutiny_evidence_document_id }}/download"
+                           class="text-aicte-700 underline font-semibold hover:text-aicte-800">
+                            Download Scrutiny Evidence File
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% elif user.role == "SCRUTINY_OFFICER" and not user.is_demo_admin %}
+                <!-- Scrutiny Officer Form -->
+                <form method="POST" action="/scrutiny/release-requests/{{ latest_release_request.id }}/recommend" enctype="multipart/form-data" class="space-y-3 text-xs">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+                    <p class="text-slate-600">Review statutory conditions and upload clearance evidence:</p>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-white p-3 rounded border border-slate-200 font-medium text-slate-800">
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" name="course_cycle_completed" value="true" class="rounded text-teal-600 focus:ring-teal-500"/>
+                            <span>Course cycle completed</span>
+                        </label>
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" name="no_student_grievances_pending" value="true" class="rounded text-teal-600 focus:ring-teal-500"/>
+                            <span>No student grievances pending</span>
+                        </label>
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" name="no_vigilance_inquiry_active" value="true" class="rounded text-teal-600 focus:ring-teal-500"/>
+                            <span>No vigilance inquiry active</span>
+                        </label>
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" name="regional_inspection_cleared" value="true" class="rounded text-teal-600 focus:ring-teal-500"/>
+                            <span>Regional inspection cleared</span>
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Recommendation *</label>
+                            <select name="recommendation" required class="w-full text-xs p-2 border border-slate-300 rounded-lg bg-white">
+                                <option value="RECOMMENDED">RECOMMENDED (All 4 conditions cleared + evidence required)</option>
+                                <option value="NOT_RECOMMENDED">NOT_RECOMMENDED (Conditions incomplete / non-compliant)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-700 mb-1">Evidence Document (PDF/Image, mandatory if recommended) *</label>
+                            <input type="file" name="evidence_file" accept=".pdf,.png,.jpg,.jpeg" class="w-full text-xs border border-slate-300 rounded-lg p-1.5 bg-white"/>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Scrutiny Officer Justification (min 10 chars) *</label>
+                        <textarea name="justification" rows="2" required minlength="10" placeholder="State inspection details, reference numbers, or deficiencies..."
+                                  class="w-full text-xs p-2 border border-slate-300 rounded-lg"></textarea>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button type="submit" class="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs rounded-lg shadow-sm transition">
+                            Record Scrutiny Recommendation
+                        </button>
+                    </div>
+                </form>
+                {% else %}
+                <p class="text-xs text-slate-500 italic">Waiting for an authorized Scrutiny Officer to record statutory recommendation.</p>
+                {% endif %}
+            </div>
+
+            <!-- Competent Authority Decision (Key 2) -->
+            <div class="p-4 rounded-lg border bg-purple-50/50 border-purple-200">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-purple-950">Key 2: Competent Authority Approval</h3>
+                    <span class="text-xs font-semibold text-purple-800">
+                        Authority Decision: <strong>{{ latest_release_request.authority_decision }}</strong>
+                    </span>
+                </div>
+
+                {% if not latest_release_request.scrutiny_recorded_at %}
+                <div class="text-xs text-amber-800 bg-amber-50 p-2.5 rounded border border-amber-200">
+                    Awaiting scrutiny officer verification. Authority decision cannot be made yet.
+                </div>
+                {% elif user.role == "APPROVER_AUTHORITY" and not user.is_demo_admin %}
+                <div class="space-y-3 text-xs">
+                    <p class="text-purple-900">
+                        Scrutiny Status:
+                        <strong class="font-mono">{{ latest_release_request.scrutiny_recommendation }}</strong>
+                        {% if latest_release_request.scrutiny_recommendation != 'RECOMMENDED' %}
+                        <span class="text-rose-700 font-semibold">(Approval is disabled because scrutiny officer did not recommend release)</span>
+                        {% endif %}
+                    </p>
+
+                    <form method="POST" action="/approver/release-requests/{{ latest_release_request.id }}/decide" class="space-y-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+                        <div>
+                            <label class="block font-semibold text-purple-950 mb-1">Competent Authority Justification (min 10 chars) *</label>
+                            <textarea name="justification" rows="2" required minlength="10" placeholder="State authority rationale for release approval or rejection..."
+                                      class="w-full text-xs p-2 border border-purple-300 rounded-lg bg-white"></textarea>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            {% if latest_release_request.scrutiny_recommendation == 'RECOMMENDED' %}
+                            <button type="submit" name="decision" value="APPROVE"
+                                    class="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg shadow-sm transition">
+                                Approve Release & Seal Order
+                            </button>
+                            {% else %}
+                            <button type="button" disabled title="Cannot approve: Scrutiny officer did not recommend release."
+                                    class="px-4 py-2 bg-slate-300 text-slate-500 font-bold text-xs rounded-lg cursor-not-allowed">
+                                Approve Release (Disabled)
+                            </button>
+                            {% endif %}
+                            <button type="submit" name="decision" value="REJECT"
+                                    onclick="return confirm('Are you sure you want to REJECT this release request? The instrument will return to prior state.');"
+                                    class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs rounded-lg shadow-sm transition">
+                                Reject Release Request
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% else %}
+                <p class="text-xs text-purple-900 italic">Decision pending by Competent Authority.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Maturity Horizon Banner -->
     {% if instrument.status in ["ACTIVE", "EXPIRING", "MATURED"] and instrument.maturity_date %}
     <div class="rounded-xl border p-4 sm:p-5 shadow-sm {% if days_to_maturity is not none and days_to_maturity <= 0 %}bg-rose-50 border-rose-300 text-rose-900{% elif days_to_maturity is not none and days_to_maturity <= 7 %}bg-rose-50/70 border-rose-300 text-rose-900{% elif days_to_maturity is not none and days_to_maturity <= 30 %}bg-amber-50 border-amber-300 text-amber-900{% else %}bg-emerald-50 border-emerald-300 text-emerald-900{% endif %}">
