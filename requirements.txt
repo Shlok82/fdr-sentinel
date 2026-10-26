@@ -25,6 +25,7 @@ Pillow==11.0.0
 # Background Tasks & Utilities
 APScheduler==3.10.4
 requests==2.32.3
+tzdata==2024.2
 
 # PDF & Text Processing (Primary Text Layer + PyPDF + FPDF2 Generator)
 pypdf==5.1.0

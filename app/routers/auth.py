@@ -98,7 +98,7 @@ def get_login_context(
         "request": request,
         "csrf_token": csrf_token,
         "next": next_url,
-        "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
+        "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
         "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,

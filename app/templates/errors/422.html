@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Validation Error | FDR Sentinel{% endblock %}
+
+{% block content %}
+<div class="min-h-[50vh] flex flex-col items-center justify-center text-center px-4">
+    <div class="w-16 h-16 rounded-full bg-rose-100 border border-rose-300 flex items-center justify-center text-rose-700 font-bold text-2xl mb-4 font-mono">
+        422
+    </div>
+    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Form Validation Error</h1>
+    <p class="mt-2 text-sm text-rose-700 max-w-md bg-rose-50 border border-rose-200 p-3 rounded-lg font-medium">
+        {{ detail or "The submitted data could not be processed due to validation errors. Please review form inputs." }}
+    </p>
+    <div class="mt-6">
+        <a href="javascript:history.back()" class="inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 transition focus:outline-none focus:ring-2 focus:ring-slate-400">
+            ← Return to Previous Page
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -78,9 +78,21 @@ class ClockService:
             return real_utc + timedelta(seconds=self._offset_seconds)
         return real_utc
 
+    def to_local(self, dt: Optional[datetime]) -> Optional[datetime]:
+        """Converts naive (assumed UTC) or aware datetime to the configured DISPLAY_TIMEZONE."""
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(settings.display_tz)
+
+    def now_local(self) -> datetime:
+        """Returns the authoritative application time converted to the configured DISPLAY_TIMEZONE."""
+        return self.to_local(self.now())
+
     def today(self) -> date:
-        """Returns the authoritative application date (UTC) with simulated offset applied."""
-        return self.now().date()
+        """Returns the authoritative application calendar date in DISPLAY_TIMEZONE."""
+        return self.now_local().date()
 
     # Backwards-compatible aliases
     def get_current_time(self) -> datetime:

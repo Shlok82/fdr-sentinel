@@ -1,7 +1,8 @@
 import uuid
 from typing import Optional
 from fastapi import APIRouter, Request, Response, Depends, Form, File, UploadFile, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse, JSONResponse
+from urllib.parse import quote_plus
 import io
 from sqlalchemy.orm import Session
 from app.core.config import settings
@@ -68,7 +69,7 @@ def list_institution_instruments(
         "instruments": instruments,
         "status_counts": status_counts,
         "selected_status": status if status in ALL_STATES else None,
-        "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
+        "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
         "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
@@ -92,7 +93,7 @@ def new_instrument_form(
         "institution": institution,
         "form_data": {},
         "errors": {},
-        "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
+        "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
         "max_upload_mb": settings.MAX_UPLOAD_MB,
@@ -179,7 +180,7 @@ async def submit_instrument_action(
             "institution": institution,
             "form_data": form.raw_fields,
             "errors": form.errors,
-            "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
+            "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
             "is_simulated": clock_service.is_simulated,
             "demo_mode": settings.DEMO_MODE,
             "max_upload_mb": settings.MAX_UPLOAD_MB,
@@ -207,7 +208,7 @@ async def submit_instrument_action(
             "institution": institution,
             "form_data": form.raw_fields,
             "errors": form.errors,
-            "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
+            "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
             "is_simulated": clock_service.is_simulated,
             "demo_mode": settings.DEMO_MODE,
             "max_upload_mb": settings.MAX_UPLOAD_MB,
@@ -265,7 +266,7 @@ def view_institution_instrument_detail(
         "documents": documents,
         "timeline": timeline,
         "tickets": tickets,
-        "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
+        "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
         "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
@@ -490,7 +491,7 @@ def _render_staff_case_page(
         "mock_failure_modes": [m.value for m in MockFailureMode],
         "action_error": action_error,
         "action_success": action_success,
-        "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
+        "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
         "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
@@ -499,16 +500,36 @@ def _render_staff_case_page(
     return templates.TemplateResponse("instruments/staff_detail.html", context, status_code=status_code)
 
 
-def _action_success_response(request: Request, instrument_id: uuid.UUID, message: str) -> Response:
+def _action_success_response(
+    request: Request,
+    instrument_id: uuid.UUID,
+    user: User,
+    db: Session,
+    message: str,
+) -> Response:
     if request.headers.get("HX-Request") == "true":
-        return Response(
-            content=f'<div class="rounded-lg bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-800 font-medium" role="alert" aria-live="polite">✓ {message}</div>',
-            media_type="text/html",
-            headers={"HX-Refresh": "true"},
+        return _render_staff_case_page(
+            request, instrument_id, user, db, action_success=message, status_code=status.HTTP_200_OK
         )
     return RedirectResponse(
-        url=f"/instruments/{instrument_id}",
+        url=f"/instruments/{instrument_id}?success={quote_plus(message)}",
         status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+def _action_error_response(
+    request: Request,
+    instrument_id: uuid.UUID,
+    user: User,
+    db: Session,
+    error_msg: str,
+    status_code: int = status.HTTP_422_UNPROCESSABLE_ENTITY,
+) -> Response:
+    accept = request.headers.get("accept", "")
+    if "application/json" in accept and "text/html" not in accept:
+        return JSONResponse(status_code=status_code, content={"detail": error_msg})
+    return _render_staff_case_page(
+        request, instrument_id, user, db, action_error=error_msg, status_code=status_code
     )
 
 
@@ -520,7 +541,11 @@ def view_staff_instrument_detail(
     db: Session = Depends(get_db)
 ):
     """Displays AICTE-wide read-only view of instrument for scrutiny, approver, and auditor roles."""
-    return _render_staff_case_page(request, instrument_id, user, db)
+    action_success = request.query_params.get("success")
+    action_error = request.query_params.get("error")
+    return _render_staff_case_page(
+        request, instrument_id, user, db, action_error=action_error, action_success=action_success
+    )
 
 
 @router.post("/instruments/{instrument_id}/actions/start-scrutiny", dependencies=[Depends(verify_csrf)])
@@ -537,10 +562,10 @@ def action_start_scrutiny(
     try:
         ScrutinyService.start_scrutiny(db, instrument_id, user, justification, actor_ip=client_ip)
         db.commit()
-        return _action_success_response(request, instrument_id, "Document scrutiny formally initiated.")
+        return _action_success_response(request, instrument_id, user, db, "Document scrutiny formally initiated.")
     except (ScrutinyError, ValueError) as exc:
         db.rollback()
-        return _render_staff_case_page(request, instrument_id, user, db, action_error=str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        return _action_error_response(request, instrument_id, user, db, str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 @router.post("/instruments/{instrument_id}/actions/mock-verify", dependencies=[Depends(verify_csrf)])
@@ -559,10 +584,10 @@ def action_mock_verify(
         rec, res = ScrutinyService.run_mock_verification(db, instrument_id, user, mode, actor_ip=client_ip)
         db.commit()
         msg = "Mock CBS verification completed successfully." if res.is_verified else "Mock CBS verification reported discrepancies."
-        return _action_success_response(request, instrument_id, msg)
+        return _action_success_response(request, instrument_id, user, db, msg)
     except (ScrutinyError, ValueError, RuntimeError) as exc:
         db.rollback()
-        return _render_staff_case_page(request, instrument_id, user, db, action_error=str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        return _action_error_response(request, instrument_id, user, db, str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 @router.post("/instruments/{instrument_id}/actions/manual-verify", dependencies=[Depends(verify_csrf)])
@@ -571,49 +596,75 @@ async def action_manual_verify(
     instrument_id: uuid.UUID,
     letter_file: Optional[UploadFile] = File(None),
     confirmation_file: Optional[UploadFile] = File(None),
-    reference_number: str = Form(...),
-    memo: str = Form(...),
+    reference_number: Optional[str] = Form(None),
+    memo: Optional[str] = Form(None),
     user: User = Depends(require_roles("SCRUTINY_OFFICER")),
     db: Session = Depends(get_db),
 ):
     if getattr(user, "is_demo_admin", False):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Demo Admin has read-only access to scrutiny cases.")
-    client_ip = get_client_ip(request)
+    if not reference_number or not reference_number.strip():
+        return _action_error_response(request, instrument_id, user, db, "Letter reference number is required.")
+    if not memo or not memo.strip():
+        return _action_error_response(request, instrument_id, user, db, "Verification memo is required.")
     upload = letter_file or confirmation_file
     if not upload:
-        return _render_staff_case_page(request, instrument_id, user, db, action_error="Confirmation letter file is required.", status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        return _action_error_response(request, instrument_id, user, db, "Confirmation letter scan file is required.")
+
     file_bytes = await upload.read()
+    if not file_bytes:
+        return _action_error_response(request, instrument_id, user, db, "Uploaded confirmation letter file is empty.")
     file_name = upload.filename or "confirmation.pdf"
+    client_ip = get_client_ip(request)
     try:
         ScrutinyService.record_manual_confirmation(
-            db, instrument_id, user, file_bytes, file_name, reference_number, memo, actor_ip=client_ip
+            db, instrument_id, user, file_bytes, file_name, reference_number.strip(), memo.strip(), actor_ip=client_ip
         )
         db.commit()
-        return _action_success_response(request, instrument_id, "Bank confirmation letter encrypted and recorded successfully.")
+        return _action_success_response(request, instrument_id, user, db, "Bank confirmation letter encrypted and recorded successfully.")
     except (ScrutinyError, ValueError) as exc:
         db.rollback()
-        return _render_staff_case_page(request, instrument_id, user, db, action_error=str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        return _action_error_response(request, instrument_id, user, db, str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 @router.post("/instruments/{instrument_id}/actions/add-note", dependencies=[Depends(verify_csrf)])
 def action_add_note(
     request: Request,
     instrument_id: uuid.UUID,
-    note_text: str = Form(...),
-    action_recommended: str = Form("CLEAR"),
+    note_text: Optional[str] = Form(None),
+    note: Optional[str] = Form(None),
+    action_recommended: Optional[str] = Form("CLEAR"),
     user: User = Depends(require_roles("SCRUTINY_OFFICER")),
     db: Session = Depends(get_db),
 ):
     if getattr(user, "is_demo_admin", False):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Demo Admin has read-only access to scrutiny cases.")
+
+    clean_text = (note_text or note or "").strip()
+    if not clean_text:
+        return _action_error_response(request, instrument_id, user, db, "Note content cannot be blank or whitespace-only.")
+
+    if len(clean_text) < 10:
+        return _action_error_response(request, instrument_id, user, db, "Note content must be at least 10 characters.")
+
+    if len(clean_text) > 2000:
+        return _action_error_response(request, instrument_id, user, db, "Note content cannot exceed 2000 characters.")
+
+    rec = (action_recommended or "CLEAR").strip().upper()
+    if rec not in ("CLEAR", "FLAG_DISCREPANCY", "REJECT"):
+        return _action_error_response(
+            request, instrument_id, user, db,
+            f"Invalid recommendation: '{action_recommended}'. Must be CLEAR, FLAG_DISCREPANCY, or REJECT."
+        )
+
     client_ip = get_client_ip(request)
     try:
-        ScrutinyService.add_scrutiny_note(db, instrument_id, user, note_text, action_recommended, actor_ip=client_ip)
+        ScrutinyService.add_scrutiny_note(db, instrument_id, user, clean_text, rec, actor_ip=client_ip)
         db.commit()
-        return _action_success_response(request, instrument_id, "Scrutiny note recorded.")
+        return _action_success_response(request, instrument_id, user, db, "Scrutiny note recorded.")
     except (ScrutinyError, ValueError) as exc:
         db.rollback()
-        return _render_staff_case_page(request, instrument_id, user, db, action_error=str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        return _action_error_response(request, instrument_id, user, db, str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 @router.post("/instruments/{instrument_id}/actions/flag-discrepancy", dependencies=[Depends(verify_csrf)])
@@ -640,10 +691,10 @@ def action_flag_discrepancy(
             actor_ip=client_ip,
         )
         db.commit()
-        return _action_success_response(request, instrument_id, "Discrepancy formally flagged. Instrument status updated.")
+        return _action_success_response(request, instrument_id, user, db, "Discrepancy formally flagged. Instrument status updated.")
     except (ScrutinyError, ValueError) as exc:
         db.rollback()
-        return _render_staff_case_page(request, instrument_id, user, db, action_error=str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        return _action_error_response(request, instrument_id, user, db, str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 @router.post("/instruments/{instrument_id}/actions/verify", dependencies=[Depends(verify_csrf)])
@@ -660,10 +711,10 @@ def action_verify(
     try:
         ScrutinyService.verify_instrument(db, instrument_id, user, justification, actor_ip=client_ip)
         db.commit()
-        return _action_success_response(request, instrument_id, "Instrument formally verified.")
+        return _action_success_response(request, instrument_id, user, db, "Instrument formally verified.")
     except (ScrutinyError, ValueError) as exc:
         db.rollback()
-        return _render_staff_case_page(request, instrument_id, user, db, action_error=str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        return _action_error_response(request, instrument_id, user, db, str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 @router.post("/instruments/{instrument_id}/actions/activate", dependencies=[Depends(verify_csrf)])
@@ -680,30 +731,35 @@ def action_activate(
     try:
         ScrutinyService.activate_instrument(db, instrument_id, user, justification, actor_ip=client_ip)
         db.commit()
-        return _action_success_response(request, instrument_id, "Deposit activated and committed into AICTE custody.")
+        return _action_success_response(request, instrument_id, user, db, "Deposit activated and committed into AICTE custody.")
     except (ScrutinyError, ValueError) as exc:
         db.rollback()
-        return _render_staff_case_page(request, instrument_id, user, db, action_error=str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        return _action_error_response(request, instrument_id, user, db, str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 @router.post("/instruments/{instrument_id}/actions/reject", dependencies=[Depends(verify_csrf)])
 def action_reject(
     request: Request,
     instrument_id: uuid.UUID,
-    justification: str = Form(...),
+    justification: Optional[str] = Form(None),
     user: User = Depends(require_roles("APPROVER_AUTHORITY")),
     db: Session = Depends(get_db),
 ):
     if getattr(user, "is_demo_admin", False):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Demo Admin has read-only access to scrutiny cases.")
+    clean_justification = (justification or "").strip()
+    if not clean_justification:
+        return _action_error_response(request, instrument_id, user, db, "Rejection justification cannot be blank.")
+    if len(clean_justification) < 10:
+        return _action_error_response(request, instrument_id, user, db, "Rejection justification must be at least 10 characters.")
     client_ip = get_client_ip(request)
     try:
-        ScrutinyService.reject_instrument(db, instrument_id, user, justification, actor_ip=client_ip)
+        ScrutinyService.reject_instrument(db, instrument_id, user, clean_justification, actor_ip=client_ip)
         db.commit()
-        return _action_success_response(request, instrument_id, "Instrument formally rejected by Competent Authority.")
+        return _action_success_response(request, instrument_id, user, db, "Instrument formally rejected by Competent Authority.")
     except (ScrutinyError, ValueError) as exc:
         db.rollback()
-        return _render_staff_case_page(request, instrument_id, user, db, action_error=str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        return _action_error_response(request, instrument_id, user, db, str(exc), status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 @router.get("/instruments/{instrument_id}/documents/{document_id}/download")

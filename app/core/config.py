@@ -1,5 +1,6 @@
 import base64
 from typing import Optional, Literal
+from zoneinfo import ZoneInfo
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -44,6 +45,13 @@ class Settings(BaseSettings):
     MAX_UPLOAD_MB: int = 10
     MOCK_BANK_LATENCY_MS: int = 800
 
+    # Temporal & Localization Settings
+    DISPLAY_TIMEZONE: str = "Asia/Kolkata"
+
+    @property
+    def display_tz(self) -> ZoneInfo:
+        return ZoneInfo(self.DISPLAY_TIMEZONE)
+
     # Backwards compatibility alias for ENVIRONMENT
     @property
     def ENVIRONMENT(self) -> str:
@@ -77,6 +85,12 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "Configuration error: DOCUMENT_MASTER_KEY must be a valid 32-byte base64-encoded string."
                 )
+
+        # Validate DISPLAY_TIMEZONE
+        try:
+            ZoneInfo(self.DISPLAY_TIMEZONE)
+        except Exception as exc:
+            raise ValueError(f"Configuration error: Invalid DISPLAY_TIMEZONE '{self.DISPLAY_TIMEZONE}': {exc}")
 
         return self
 

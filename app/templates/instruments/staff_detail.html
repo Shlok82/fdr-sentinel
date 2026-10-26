@@ -3,26 +3,26 @@
 {% block title %}Inspect FDR {{ instrument.fdr_number or instrument.id }} | FDR Sentinel{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto space-y-6">
+<div id="staff-case-container" class="max-w-5xl mx-auto space-y-6">
 
     <!-- Flash Error / Success Notifications -->
-    {% if action_error %}
-    <div class="rounded-xl bg-rose-50 border border-rose-200 p-4 text-sm text-rose-800 font-medium flex items-center space-x-2 shadow-sm" role="alert" aria-live="polite">
-        <svg class="w-5 h-5 text-rose-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-        </svg>
-        <span>{{ action_error }}</span>
+    <div id="case-action-feedback" role="alert" aria-live="polite">
+        {% if action_error %}
+        <div class="rounded-xl bg-rose-50 border border-rose-200 p-4 text-sm text-rose-800 font-medium flex items-center space-x-2 shadow-sm mb-6">
+            <svg class="w-5 h-5 text-rose-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <span>{{ action_error }}</span>
+        </div>
+        {% elif action_success %}
+        <div class="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-800 font-medium flex items-center space-x-2 shadow-sm mb-6">
+            <svg class="w-5 h-5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span>{{ action_success }}</span>
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
-
-    {% if action_success %}
-    <div class="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-800 font-medium flex items-center space-x-2 shadow-sm" role="alert" aria-live="polite">
-        <svg class="w-5 h-5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-        </svg>
-        <span>{{ action_success }}</span>
-    </div>
-    {% endif %}
 
     {% if has_rejection_recommendation and user.role == "APPROVER_AUTHORITY" %}
     <div class="rounded-xl bg-rose-50 border-2 border-rose-300 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -59,7 +59,7 @@
                     {{ instrument.fdr_number or "FDR Record (Number Pending)" }}
                 </h1>
                 <p class="mt-1 text-xs text-slate-500">
-                    Region: <span class="font-medium text-slate-700">{{ institution.region if institution else "—" }}</span> • Submitted: {{ instrument.created_at | format_datetime("%d %b %Y, %H:%M:%S UTC") }}
+                    Region: <span class="font-medium text-slate-700">{{ institution.region if institution else "—" }}</span> • Submitted: {{ instrument.created_at | format_datetime }}
                 </p>
             </div>
             <div class="flex items-center space-x-3">
@@ -182,9 +182,13 @@
                     <h3 class="text-sm font-bold text-slate-800">Initiate Custody Scrutiny</h3>
                     <p class="text-xs text-slate-500 mt-0.5">Transitions FDR from SUBMITTED to UNDER_SCRUTINY and assigns reviewer.</p>
                 </div>
-                <form method="POST" action="/instruments/{{ instrument.id }}/actions/start-scrutiny">
+                <form method="POST" action="/instruments/{{ instrument.id }}/actions/start-scrutiny" id="form-action-start-scrutiny"
+                      hx-post="/instruments/{{ instrument.id }}/actions/start-scrutiny"
+                      hx-target="#staff-case-container"
+                      hx-select="#staff-case-container"
+                      hx-swap="outerHTML">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
-                    <button type="submit"
+                    <button type="submit" id="btn-start-scrutiny"
                             class="px-4 py-2 bg-aicte-700 hover:bg-aicte-800 text-white font-semibold text-xs rounded-lg shadow-sm transition">
                         Start Scrutiny Process
                     </button>
@@ -213,17 +217,21 @@
                             </p>
                         </div>
 
-                        <form method="POST" action="/instruments/{{ instrument.id }}/actions/mock-verify" class="mt-4 space-y-3">
+                        <form method="POST" action="/instruments/{{ instrument.id }}/actions/mock-verify" id="form-action-mock-verify" class="mt-4 space-y-3"
+                              hx-post="/instruments/{{ instrument.id }}/actions/mock-verify"
+                              hx-target="#staff-case-container"
+                              hx-select="#staff-case-container"
+                              hx-swap="outerHTML">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
                             <div>
-                                <label for="failure_mode" class="block text-[11px] font-semibold text-slate-700">Simulated Response Mode</label>
-                                <select id="failure_mode" name="failure_mode" class="mt-1 w-full text-xs rounded-md border-slate-300 bg-white py-1.5 px-2 text-slate-800 focus:border-aicte-500 focus:ring-aicte-500">
+                                <label for="mock_failure_mode" class="block text-[11px] font-semibold text-slate-700">Simulated Response Mode</label>
+                                <select id="mock_failure_mode" name="failure_mode" class="mt-1 w-full text-xs rounded-md border-slate-300 bg-white py-1.5 px-2 text-slate-800 focus:border-aicte-500 focus:ring-aicte-500">
                                     {% for mode in mock_failure_modes %}
                                     <option value="{{ mode }}">{{ mode }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
-                            <button type="submit"
+                            <button type="submit" id="btn-mock-verify"
                                     class="w-full px-3 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs rounded-lg shadow-sm transition">
                                 Run Mock Bank Verification
                             </button>
@@ -246,24 +254,24 @@
                             </p>
                         </div>
 
-                        <form method="POST" action="/instruments/{{ instrument.id }}/actions/manual-verify" enctype="multipart/form-data" class="mt-4 space-y-3">
+                        <form method="POST" action="/instruments/{{ instrument.id }}/actions/manual-verify" id="form-action-manual-verify" enctype="multipart/form-data" class="mt-4 space-y-3">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
                             <div>
-                                <label for="reference_number" class="block text-[11px] font-semibold text-slate-700">Letter Ref Number *</label>
-                                <input type="text" id="reference_number" name="reference_number" required placeholder="e.g. SBI/RO/2026/8941"
+                                <label for="manual_reference_number" class="block text-[11px] font-semibold text-slate-700">Letter Ref Number *</label>
+                                <input type="text" id="manual_reference_number" name="reference_number" required placeholder="e.g. SBI/RO/2026/8941"
                                        class="mt-1 w-full text-xs rounded-md border-slate-300 bg-white py-1.5 px-2 text-slate-800 focus:border-emerald-500 focus:ring-emerald-500"/>
                             </div>
                             <div>
-                                <label for="memo" class="block text-[11px] font-semibold text-slate-700">Verification Memo *</label>
-                                <textarea id="memo" name="memo" rows="2" required placeholder="Officer verification remarks, branch contact verified..."
+                                <label for="manual_memo" class="block text-[11px] font-semibold text-slate-700">Verification Memo *</label>
+                                <textarea id="manual_memo" name="memo" rows="2" required placeholder="Officer verification remarks, branch contact verified..."
                                           class="mt-1 w-full text-xs rounded-md border-slate-300 bg-white py-1.5 px-2 text-slate-800 focus:border-emerald-500 focus:ring-emerald-500"></textarea>
                             </div>
                             <div>
-                                <label for="letter_file" class="block text-[11px] font-semibold text-slate-700">Confirmation Letter Scan (PDF/PNG/JPEG) *</label>
-                                <input type="file" id="letter_file" name="letter_file" accept=".pdf,.png,.jpg,.jpeg" required
+                                <label for="manual_letter_file" class="block text-[11px] font-semibold text-slate-700">Confirmation Letter Scan (PDF/PNG/JPEG) *</label>
+                                <input type="file" id="manual_letter_file" name="letter_file" accept=".pdf,.png,.jpg,.jpeg" required
                                        class="mt-1 block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200"/>
                             </div>
-                            <button type="submit"
+                            <button type="submit" id="btn-manual-verify"
                                     class="w-full px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs rounded-lg shadow-sm transition">
                                 Upload & Confirm Verification
                             </button>
@@ -281,7 +289,11 @@
                 <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
                     <h4 class="text-xs font-bold text-slate-800">Add Scrutiny Note</h4>
                     <p class="text-xs text-slate-500 mt-0.5">Attach finding notes or recommendations to the permanent audit trail.</p>
-                    <form method="POST" action="/instruments/{{ instrument.id }}/actions/add-note" class="mt-3 space-y-3">
+                    <form method="POST" action="/instruments/{{ instrument.id }}/actions/add-note" id="form-action-add-note" class="mt-3 space-y-3"
+                          hx-post="/instruments/{{ instrument.id }}/actions/add-note"
+                          hx-target="#staff-case-container"
+                          hx-select="#staff-case-container"
+                          hx-swap="outerHTML">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
                         <div>
                             <label for="action_recommended" class="block text-[11px] font-semibold text-slate-700">Recommendation</label>
@@ -292,11 +304,11 @@
                             </select>
                         </div>
                         <div>
-                            <label for="note" class="block text-[11px] font-semibold text-slate-700">Note Content *</label>
-                            <textarea id="note" name="note" rows="2" required placeholder="Observations, branch calls, discrepancies noted..."
+                            <label for="note_text" class="block text-[11px] font-semibold text-slate-700">Note Content *</label>
+                            <textarea id="note_text" name="note_text" rows="2" required placeholder="Observations, branch calls, discrepancies noted..."
                                       class="mt-1 w-full text-xs rounded-md border-slate-300 bg-white py-1.5 px-2 text-slate-800 focus:border-aicte-500"></textarea>
                         </div>
-                        <button type="submit"
+                        <button type="submit" id="btn-add-note"
                                 class="px-3 py-2 bg-slate-700 hover:bg-slate-800 text-white font-semibold text-xs rounded-lg shadow-sm transition">
                             Record Scrutiny Note
                         </button>
@@ -309,14 +321,18 @@
                 <div class="p-4 bg-amber-50/60 rounded-lg border border-amber-200">
                     <h4 class="text-xs font-bold text-amber-900">Flag Discrepancy</h4>
                     <p class="text-xs text-amber-700 mt-0.5">Transitions to DISCREPANCY_FLAGGED and creates an open OFFICER-FLAG ticket.</p>
-                    <form method="POST" action="/instruments/{{ instrument.id }}/actions/flag-discrepancy" class="mt-3 space-y-3">
+                    <form method="POST" action="/instruments/{{ instrument.id }}/actions/flag-discrepancy" id="form-action-flag-discrepancy" class="mt-3 space-y-3"
+                          hx-post="/instruments/{{ instrument.id }}/actions/flag-discrepancy"
+                          hx-target="#staff-case-container"
+                          hx-select="#staff-case-container"
+                          hx-swap="outerHTML">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
                         <div>
-                            <label for="reason" class="block text-[11px] font-semibold text-amber-900">Reason for Flagging (min 5 chars) *</label>
-                            <textarea id="reason" name="reason" rows="3" minlength="5" required placeholder="Specify discrepancies in maturity date, unauthorized renewal clause, or bank mismatch..."
+                            <label for="flag_reason" class="block text-[11px] font-semibold text-amber-900">Reason for Flagging (min 5 chars) *</label>
+                            <textarea id="flag_reason" name="reason" rows="3" minlength="5" required placeholder="Specify discrepancies in maturity date, unauthorized renewal clause, or bank mismatch..."
                                       class="mt-1 w-full text-xs rounded-md border-amber-300 bg-white py-1.5 px-2 text-slate-800 focus:border-amber-500 focus:ring-amber-500"></textarea>
                         </div>
-                        <button type="submit"
+                        <button type="submit" id="btn-flag-discrepancy"
                                 class="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-lg shadow-sm transition">
                             Flag Discrepancy
                         </button>
@@ -334,9 +350,13 @@
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
                     {% if can_verify %}
-                    <form method="POST" action="/instruments/{{ instrument.id }}/actions/verify">
+                    <form method="POST" action="/instruments/{{ instrument.id }}/actions/verify" id="form-action-verify"
+                          hx-post="/instruments/{{ instrument.id }}/actions/verify"
+                          hx-target="#staff-case-container"
+                          hx-select="#staff-case-container"
+                          hx-swap="outerHTML">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
-                        <button type="submit"
+                        <button type="submit" id="btn-verify"
                                 class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs rounded-lg shadow-sm transition">
                             Mark Verified (UNDER_SCRUTINY &rarr; VERIFIED)
                         </button>
@@ -344,9 +364,13 @@
                     {% endif %}
 
                     {% if can_activate %}
-                    <form method="POST" action="/instruments/{{ instrument.id }}/actions/activate">
+                    <form method="POST" action="/instruments/{{ instrument.id }}/actions/activate" id="form-action-activate"
+                          hx-post="/instruments/{{ instrument.id }}/actions/activate"
+                          hx-target="#staff-case-container"
+                          hx-select="#staff-case-container"
+                          hx-swap="outerHTML">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
-                        <button type="submit"
+                        <button type="submit" id="btn-activate"
                                 class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg shadow-sm transition">
                             Activate Deposit (VERIFIED &rarr; ACTIVE)
                         </button>
@@ -368,14 +392,18 @@
                 <p class="text-xs text-rose-700 mt-1">
                     Permanently rejects this instrument. The rejection ruling and justification are recorded irrevocably in the audit log.
                 </p>
-                <form method="POST" action="/instruments/{{ instrument.id }}/actions/reject" class="mt-3 space-y-3">
+                <form method="POST" action="/instruments/{{ instrument.id }}/actions/reject" id="form-action-reject" class="mt-3 space-y-3"
+                      hx-post="/instruments/{{ instrument.id }}/actions/reject"
+                      hx-target="#staff-case-container"
+                      hx-select="#staff-case-container"
+                      hx-swap="outerHTML">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
                     <div>
                         <label for="reject_justification" class="block text-[11px] font-semibold text-rose-900">Formal Rejection Justification (min 10 characters) *</label>
                         <textarea id="reject_justification" name="justification" rows="2" minlength="10" required placeholder="State exact grounds for rejection (e.g. unverified joint holder clause, forged confirmation)..."
                                   class="mt-1 w-full text-xs rounded-md border-rose-300 bg-white py-1.5 px-2 text-slate-800 focus:border-rose-500 focus:ring-rose-500"></textarea>
                     </div>
-                    <button type="submit"
+                    <button type="submit" id="btn-reject"
                             onclick="return confirm('Are you sure you want to REJECT this instrument? This action is terminal and will be permanently logged.');"
                             class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs rounded-lg shadow-sm transition">
                         Reject Instrument (Terminal)
@@ -463,8 +491,8 @@
                         {{ note.created_at | format_datetime }}
                     </span>
                 </div>
-                <div class="text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-200/60 leading-relaxed">
-                    {{ note.note_text }}
+                <div class="text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-200/60 leading-relaxed whitespace-pre-wrap">
+                    {{ note.note_text | e }}
                 </div>
             </div>
             {% else %}

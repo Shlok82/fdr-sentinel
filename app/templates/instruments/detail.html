@@ -25,7 +25,7 @@
                         {{ instrument.fdr_number or "FDR Submission (Reference Pending)" }}
                     </h1>
                     <p class="mt-1 text-xs text-slate-500">
-                        Submitted at {{ instrument.created_at | format_datetime("%d %b %Y, %H:%M:%S UTC") }} • Renewal Sequence: {{ instrument.renewal_sequence }}
+                        Submitted at {{ instrument.created_at | format_datetime }} • Renewal Sequence: {{ instrument.renewal_sequence }}
                     </p>
                 </div>
                 <div class="flex items-center space-x-3">

@@ -1,7 +1,7 @@
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Request, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 from app.core.templates import templates
 from app.core.config import settings
@@ -25,7 +25,7 @@ def common_context(request: Request, user: Optional[User]) -> dict:
     return {
         "request": request,
         "user": user,
-        "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
+        "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
         "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
@@ -36,9 +36,10 @@ def common_context(request: Request, user: Optional[User]) -> dict:
 @router.get("/", response_class=HTMLResponse)
 def index_page(
     request: Request,
-    user: Optional[User] = Depends(get_optional_current_user)
+    user: Optional[User] = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
 ):
-    """Landing page: redirects authenticated users to their role workspace."""
+    """Landing page: redirects authenticated users to their role workspace, or renders public landing page."""
     if user:
         mapping = {
             "INSTITUTION_ADMIN": "/institution",
@@ -48,7 +49,14 @@ def index_page(
         }
         return RedirectResponse(url=mapping.get(user.role, "/dashboard"), status_code=status.HTTP_302_FOUND)
 
+    system_status = "Operational"
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception:
+        system_status = "Degraded"
+
     ctx = common_context(request, user)
+    ctx["system_status"] = system_status
     return templates.TemplateResponse("index.html", ctx)
 
 
@@ -290,6 +298,6 @@ def audit_verify_page(
     ctx = common_context(request, user)
     ctx["verify_result"] = result
     ctx["is_full_auditor"] = (user.role == "AUDITOR" and not user.is_demo_admin)
-    ctx["checked_at"] = clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC")
+    ctx["checked_at"] = clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST")
 
     return templates.TemplateResponse("audit/verify.html", ctx)

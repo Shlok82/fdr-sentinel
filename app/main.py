@@ -1,9 +1,11 @@
+import html
 import logging
 import traceback
 from fastapi import FastAPI, Request, Response, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from pathlib import Path
 from app.core.config import settings
@@ -85,7 +87,7 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
             "request": request,
             "user": None,
             "detail": safe_detail,
-            "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
+            "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
             "is_simulated": clock_service.is_simulated,
             "demo_mode": settings.DEMO_MODE,
             "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
@@ -95,6 +97,53 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
 
     safe_detail = "Internal Server Error" if exc.status_code >= 500 else exc.detail
     return JSONResponse(status_code=exc.status_code, content={"detail": safe_detail})
+
+
+# Central Exception Handler for Request Validation Errors (never raw FastAPI JSON in browser)
+@app.exception_handler(RequestValidationError)
+async def custom_validation_exception_handler(request: Request, exc: RequestValidationError):
+    accept = request.headers.get("accept", "")
+    is_htmx = bool(request.headers.get("HX-Request"))
+    is_api = (
+        request.url.path.startswith("/api/")
+        or request.url.path.startswith("/demo/")
+        or request.url.path.startswith("/healthz")
+        or ("application/json" in accept and "text/html" not in accept)
+    )
+
+    error_messages = []
+    for error in exc.errors():
+        field_loc = error.get("loc", [])
+        field_name = field_loc[-1] if field_loc else "Field"
+        if field_name == "body":
+            field_name = "form"
+        readable_field = str(field_name).replace("_", " ").title()
+        msg = error.get("msg", "Invalid value")
+        error_messages.append(f"{readable_field}: {msg}")
+
+    friendly_text = " • ".join(error_messages) if error_messages else "Invalid form submission."
+
+    if is_api and not is_htmx:
+        return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content={"detail": exc.errors()})
+
+    if is_htmx:
+        return Response(
+            content=f'<div class="rounded-lg bg-rose-50 border border-rose-200 p-4 text-sm text-rose-800 font-medium" role="alert" aria-live="polite">⚠ {html.escape(friendly_text)}</div>',
+            media_type="text/html",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
+    ctx = {
+        "request": request,
+        "user": None,
+        "detail": friendly_text,
+        "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
+        "is_simulated": clock_service.is_simulated,
+        "demo_mode": settings.DEMO_MODE,
+        "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
+        "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
+    }
+    return templates.TemplateResponse("errors/422.html", ctx, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 # Global catch-all handler for unexpected Python exceptions (TypeError, AttributeError, etc.)
@@ -132,7 +181,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
         "request": request,
         "user": None,
         "detail": "Internal Server Error",
-        "current_time": clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC"),
+        "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
         "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,

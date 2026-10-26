@@ -1,7 +1,15 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
-from typing import Any
+from typing import Any, Optional
 from fastapi.templating import Jinja2Templates
+from app.core.config import settings
+
+
+def _to_display_tz(dt: datetime) -> datetime:
+    """Converts naive (assumed UTC) or aware datetime to configured DISPLAY_TIMEZONE."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(settings.display_tz)
 
 
 def format_inr(val: Any) -> str:
@@ -46,34 +54,65 @@ def format_inr(val: Any) -> str:
 
 
 def format_date(val: Any, fmt: str = "%d %b %Y") -> str:
-    """Formats a date or datetime object, returning '—' for missing/empty values."""
+    """Formats a date or datetime object, returning '—' for missing/empty values.
+    
+    If given a datetime or ISO timestamp string, converts to DISPLAY_TIMEZONE first
+    so the calendar date accurately reflects IST.
+    """
     if val is None or val == "":
         return "—"
-    if hasattr(val, "strftime"):
+    if isinstance(val, datetime):
+        return _to_display_tz(val).strftime(fmt)
+    if isinstance(val, date):
         return val.strftime(fmt)
     try:
         s = str(val).strip()
         if "T" in s or " " in s:
             dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
-            return dt.strftime(fmt)
+            return _to_display_tz(dt).strftime(fmt)
         d = date.fromisoformat(s)
         return d.strftime(fmt)
     except Exception:
         return "—"
 
 
-def format_datetime(val: Any, fmt: str = "%d %b %Y, %H:%M") -> str:
-    """Formats a datetime object with hours and minutes, returning '—' for missing values."""
+def format_datetime(val: Any, fmt: Optional[str] = None) -> str:
+    """Formats a datetime object converted to DISPLAY_TIMEZONE, returning '—' for missing values.
+    
+    Output format: 'DD Mon YYYY, HH:MM IST' (e.g. '26 Oct 2026, 03:02 IST').
+    Always ends with 'IST'.
+    """
     if val is None or val == "":
         return "—"
-    if hasattr(val, "strftime"):
-        return val.strftime(fmt)
-    try:
-        s = str(val).strip()
-        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
-        return dt.strftime(fmt)
-    except Exception:
+    dt = None
+    if isinstance(val, datetime):
+        dt = val
+    elif hasattr(val, "strftime") and hasattr(val, "hour"):
+        dt = val
+    elif isinstance(val, date):
+        return f"{val.strftime('%d %b %Y')} IST"
+    else:
+        try:
+            s = str(val).strip()
+            if "T" in s or " " in s:
+                dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+            else:
+                d = date.fromisoformat(s)
+                return f"{d.strftime('%d %b %Y')} IST"
+        except Exception:
+            return "—"
+
+    if dt is None:
         return "—"
+
+    local_dt = _to_display_tz(dt)
+    if fmt:
+        clean_fmt = fmt.replace("UTC", "IST")
+        res = local_dt.strftime(clean_fmt)
+        if not res.endswith("IST"):
+            res = f"{res} IST"
+        return res
+    return f"{local_dt.strftime('%d %b %Y, %H:%M')} IST"
 
 
 def format_filesize(val: Any) -> str:

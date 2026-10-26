@@ -44,7 +44,9 @@ def time_machine_clock_control(
 
     action_lower = action.strip().lower()
 
-    if action_lower == "+30d":
+    if action_lower == "+1d":
+        clock_service.advance(db, 1, actor_user_id=user.id, actor_role=user.role)
+    elif action_lower == "+30d":
         clock_service.advance(db, 30, actor_user_id=user.id, actor_role=user.role)
     elif action_lower == "+60d":
         clock_service.advance(db, 60, actor_user_id=user.id, actor_role=user.role)
@@ -57,14 +59,14 @@ def time_machine_clock_control(
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unknown Time Machine action: '{action}'. Allowed: +30d, +60d, +90d, +1y, reset."
+            detail=f"Unknown Time Machine action: '{action}'. Allowed: +1d, +30d, +60d, +90d, +1y, reset."
         )
 
     db.commit()
 
     is_htmx = bool(request.headers.get("HX-Request"))
     simulated_date_str = clock_service.today().strftime("%d %b %Y")
-    current_time_str = clock_service.get_current_time().strftime("%d %b %Y, %H:%M:%S UTC")
+    current_time_str = clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST")
 
     if is_htmx:
         # Return updated toolbar and banner partials
