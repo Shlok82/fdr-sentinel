@@ -65,18 +65,6 @@ def index_page(
     return templates.TemplateResponse("index.html", ctx)
 
 
-@router.get("/dashboard", response_class=HTMLResponse)
-def dashboard_redirect(user: User = Depends(get_current_user)):
-    """Central router directing authenticated users to their role-specific workspace."""
-    mapping = {
-        "INSTITUTION_ADMIN": "/institution",
-        "SCRUTINY_OFFICER": "/scrutiny",
-        "APPROVER_AUTHORITY": "/approver",
-        "AUDITOR": "/auditor",
-    }
-    return RedirectResponse(url=mapping.get(user.role, "/institution"), status_code=status.HTTP_302_FOUND)
-
-
 @router.get("/institution", response_class=HTMLResponse)
 def institution_workspace(
     request: Request,

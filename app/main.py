@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from app.core.config import settings
 from app.core.templates import templates
-from app.routers import health, auth, demo, pages, instruments, temporal
+from app.routers import health, auth, demo, pages, instruments, temporal, dashboard
 from app.services.clock_service import clock_service
 
 logger = logging.getLogger("uvicorn.error")
@@ -220,6 +220,7 @@ app.include_router(auth.router)
 app.include_router(demo.router)
 app.include_router(instruments.router)
 app.include_router(temporal.router)
+app.include_router(dashboard.router)
 app.include_router(pages.router)
 
 

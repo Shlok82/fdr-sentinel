@@ -1,0 +1,511 @@
+{% extends "base.html" %}
+
+{% block title %}Executive Dashboard & Maturity Wall | FDR Sentinel{% endblock %}
+
+{% block head %}
+<!-- Chart.js 4.4.7 Vendored UMD -->
+<script src="/static/vendor/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Header -->
+    <div class="bg-white rounded-xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <div class="flex items-center space-x-3">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                        {{ user.role }}
+                    </span>
+                    <span class="text-xs text-slate-400">Statutory Regulatory Cockpit</span>
+                </div>
+                <h1 class="mt-2 text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Executive Dashboard & Maturity Wall</h1>
+                <p class="mt-1 text-sm text-slate-600">
+                    Comprehensive national oversight of AICTE institutional security deposits, temporal liquidity horizons, and earned trust distribution.
+                </p>
+            </div>
+            <div class="flex items-center gap-3">
+                <a href="#maturity-wall-section" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition">
+                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                    Maturity Wall
+                </a>
+                <a href="#attention-section" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    Needs Attention ({{ attention_items|length }})
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top KPI Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Card 1: In Custody -->
+        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Security Deposit in Custody</span>
+                    <span class="p-2 bg-blue-50 text-blue-700 rounded-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </span>
+                </div>
+                <p class="mt-3 text-3xl font-extrabold text-slate-900 tracking-tight" id="kpi-in-custody-compact">
+                    {{ in_custody_sum | format_inr_compact }}
+                </p>
+                <p class="mt-1 text-xs text-slate-500 font-mono" id="kpi-in-custody-exact">
+                    {{ in_custody_sum | format_inr }}
+                </p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span>Active custody states</span>
+                {% if in_custody_null_principal_count > 0 %}
+                <span class="text-amber-600 font-medium">({{ in_custody_null_principal_count }} unstated)</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Card 2: Deposit at Risk -->
+        <div class="bg-white rounded-xl border border-amber-200 bg-amber-50/20 p-6 shadow-sm flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-amber-700">Security Deposit at Risk</span>
+                    <span class="p-2 bg-amber-100 text-amber-800 rounded-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </span>
+                </div>
+                <p class="mt-3 text-3xl font-extrabold text-amber-950 tracking-tight" id="kpi-at-risk-compact">
+                    {{ at_risk_sum | format_inr_compact }}
+                </p>
+                <p class="mt-1 text-xs text-amber-700/80 font-mono" id="kpi-at-risk-exact">
+                    {{ at_risk_sum | format_inr }}
+                </p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-amber-200/50 flex items-center justify-between text-xs text-amber-800">
+                <span>{{ expiring_count }} Expiring + {{ matured_count }} Matured</span>
+                {% if at_risk_null_principal_count > 0 %}
+                <span class="text-amber-600 font-medium">({{ at_risk_null_principal_count }} unstated)</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Card 3: Earned Trust Score -->
+        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Average Earned Trust</span>
+                    <span class="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    </span>
+                </div>
+                <div class="mt-3 flex items-baseline gap-2">
+                    <p class="text-3xl font-extrabold text-slate-900 tracking-tight" id="kpi-avg-trust">{{ avg_trust_score }}</p>
+                    <span class="text-sm font-semibold text-slate-400">/ 100</span>
+                </div>
+                <div class="mt-2 w-full bg-slate-100 rounded-full h-2">
+                    <div class="bg-emerald-500 h-2 rounded-full" style="width: {{ avg_trust_score }}%"></div>
+                </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span class="text-rose-600 font-semibold">{{ low_trust_count }} Low (&lt;40)</span>
+                <span>{{ med_trust_count }} Med</span>
+                <span class="text-emerald-700 font-semibold">{{ high_trust_count }} High</span>
+            </div>
+        </div>
+
+        <!-- Card 4: Action Required -->
+        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Pending Regulatory Action</span>
+                    <span class="p-2 bg-purple-50 text-purple-700 rounded-lg">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                    </span>
+                </div>
+                <p class="mt-3 text-3xl font-extrabold text-purple-950 tracking-tight" id="kpi-pending-action">{{ pending_action_count }}</p>
+                <p class="mt-1 text-xs text-slate-500">Instruments awaiting officer/approver review</p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                <span class="text-rose-600 font-semibold">{{ under_review_count }} Discrepancy Flagged</span>
+                <span class="text-slate-500">{{ total_instruments }} Total FDRs</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Strip Grid -->
+    <div class="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-sm">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4">Portfolio State Breakdown</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+            <div class="p-3 bg-emerald-50/60 rounded-lg border border-emerald-100">
+                <p class="text-[11px] font-semibold text-emerald-800 uppercase tracking-wide">Active</p>
+                <p class="text-xl font-bold text-emerald-950 mt-1">{{ active_count }}</p>
+            </div>
+            <div class="p-3 bg-amber-50/60 rounded-lg border border-amber-100">
+                <p class="text-[11px] font-semibold text-amber-800 uppercase tracking-wide">Expiring</p>
+                <p class="text-xl font-bold text-amber-950 mt-1">{{ expiring_count }}</p>
+            </div>
+            <div class="p-3 bg-rose-50/60 rounded-lg border border-rose-100">
+                <p class="text-[11px] font-semibold text-rose-800 uppercase tracking-wide">Matured</p>
+                <p class="text-xl font-bold text-rose-950 mt-1">{{ matured_count }}</p>
+            </div>
+            <div class="p-3 bg-indigo-50/60 rounded-lg border border-indigo-100">
+                <p class="text-[11px] font-semibold text-indigo-800 uppercase tracking-wide">Renewed</p>
+                <p class="text-xl font-bold text-indigo-950 mt-1">{{ renewed_count }}</p>
+            </div>
+            <div class="p-3 bg-slate-100/70 rounded-lg border border-slate-200">
+                <p class="text-[11px] font-semibold text-slate-800 uppercase tracking-wide">Released</p>
+                <p class="text-xl font-bold text-slate-900 mt-1">{{ released_count }}</p>
+            </div>
+            <div class="p-3 bg-red-50/70 rounded-lg border border-red-200">
+                <p class="text-[11px] font-semibold text-red-800 uppercase tracking-wide">Flagged</p>
+                <p class="text-xl font-bold text-red-950 mt-1">{{ under_review_count }}</p>
+            </div>
+            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                <p class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Total Records</p>
+                <p class="text-xl font-bold text-slate-900 mt-1">{{ total_instruments }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart 1: Maturity Wall -->
+    <div id="maturity-wall-section" class="bg-white rounded-xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h2 class="text-xl font-bold text-slate-900 tracking-tight">AICTE Security Deposit Maturity Wall</h2>
+                <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                    12-Month horizon showing principal capital maturity distribution across ACTIVE and EXPIRING instruments.
+                </p>
+            </div>
+            <div class="flex items-center gap-4 text-xs font-semibold">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-3 h-3 rounded bg-sky-600 inline-block"></span>
+                    <span class="text-slate-700">Active</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-3 h-3 rounded bg-amber-500 inline-block"></span>
+                    <span class="text-slate-700">Expiring (&le;90d)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="relative w-full h-80 sm:h-96">
+            <canvas id="maturity-wall-chart" role="img" aria-label="Stacked bar chart of fixed deposit maturities over the next 12 calendar months"></canvas>
+        </div>
+
+        <!-- Accessible Data Table -->
+        <div class="border-t border-slate-100 pt-4">
+            <details class="group">
+                <summary class="cursor-pointer text-xs font-semibold text-aicte-700 hover:text-aicte-800 select-none flex items-center gap-1.5">
+                    <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    View Tabular Maturity Wall Data (Accessible View)
+                </summary>
+                <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+                    <table class="min-w-full divide-y divide-slate-200 text-xs text-left" id="table-maturity-wall">
+                        <thead class="bg-slate-50 font-semibold text-slate-700">
+                            <tr>
+                                <th scope="col" class="py-2.5 px-4">Tranche</th>
+                                <th scope="col" class="py-2.5 px-4 text-right">Active FDRs</th>
+                                <th scope="col" class="py-2.5 px-4 text-right">Active Principal</th>
+                                <th scope="col" class="py-2.5 px-4 text-right">Expiring FDRs</th>
+                                <th scope="col" class="py-2.5 px-4 text-right">Expiring Principal</th>
+                                <th scope="col" class="py-2.5 px-4 text-right">Total Principal</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 bg-white">
+                            {% for t in tranches_data %}
+                            <tr class="hover:bg-slate-50">
+                                <td class="py-2 px-4 font-semibold text-slate-900">{{ t.label }}</td>
+                                <td class="py-2 px-4 text-right font-mono">{{ t.active_count }}</td>
+                                <td class="py-2 px-4 text-right font-mono">{{ t.active_amount | format_inr_compact }}</td>
+                                <td class="py-2 px-4 text-right font-mono text-amber-700">{{ t.expiring_count }}</td>
+                                <td class="py-2 px-4 text-right font-mono text-amber-700">{{ t.expiring_amount | format_inr_compact }}</td>
+                                <td class="py-2 px-4 text-right font-mono font-bold text-slate-900">{{ t.total_amount | format_inr_compact }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if wall_null_date_count > 0 or wall_null_amount_count > 0 %}
+                <p class="mt-2 text-[11px] text-slate-400 italic">
+                    * Note: Excluded {{ wall_null_date_count }} instruments with unrecorded maturity dates and {{ wall_null_amount_count }} with unrecorded principal values.
+                </p>
+                {% endif %}
+            </details>
+        </div>
+    </div>
+
+    <!-- Chart 2: Regional Exposure -->
+    <div class="bg-white rounded-xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h2 class="text-xl font-bold text-slate-900 tracking-tight">Regional Security Deposit Exposure</h2>
+                <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                    Aggregate in-custody security deposit amounts across all 8 AICTE administrative regions.
+                </p>
+            </div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="relative w-full h-80">
+            <canvas id="regional-exposure-chart" role="img" aria-label="Horizontal bar chart showing security deposit capital per AICTE region"></canvas>
+        </div>
+
+        <!-- Accessible Data Table -->
+        <div class="border-t border-slate-100 pt-4">
+            <details class="group">
+                <summary class="cursor-pointer text-xs font-semibold text-aicte-700 hover:text-aicte-800 select-none flex items-center gap-1.5">
+                    <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    View Tabular Regional Exposure Data (Accessible View)
+                </summary>
+                <div class="mt-4 overflow-x-auto rounded-lg border border-slate-200">
+                    <table class="min-w-full divide-y divide-slate-200 text-xs text-left" id="table-regional-exposure">
+                        <thead class="bg-slate-50 font-semibold text-slate-700">
+                            <tr>
+                                <th scope="col" class="py-2.5 px-4">AICTE Region</th>
+                                <th scope="col" class="py-2.5 px-4 text-right">Institutions</th>
+                                <th scope="col" class="py-2.5 px-4 text-right">In-Custody FDRs</th>
+                                <th scope="col" class="py-2.5 px-4 text-right">Total Capital (Compact)</th>
+                                <th scope="col" class="py-2.5 px-4 text-right">Total Capital (Exact)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 bg-white">
+                            {% for r in regional_data %}
+                            <tr class="hover:bg-slate-50">
+                                <td class="py-2 px-4 font-semibold text-slate-900">{{ r.region }}</td>
+                                <td class="py-2 px-4 text-right font-mono">{{ r.institutions_count }}</td>
+                                <td class="py-2 px-4 text-right font-mono">{{ r.in_custody_count }}</td>
+                                <td class="py-2 px-4 text-right font-mono font-semibold text-slate-900">{{ r.principal_amount | format_inr_compact }}</td>
+                                <td class="py-2 px-4 text-right font-mono text-slate-500">{{ r.principal_amount | format_inr }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <!-- Section 5: Needs Attention Queue -->
+    <div id="attention-section" class="bg-white rounded-xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-xl font-bold text-slate-900 tracking-tight">Immediate Attention Required</h2>
+                <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                    Prioritized queue of up to 10 instruments requiring compliance scrutiny, discrepancy resolution, or release review.
+                </p>
+            </div>
+            <span class="text-xs font-semibold px-2.5 py-1 bg-rose-50 text-rose-700 rounded-full border border-rose-200">
+                Top Priority
+            </span>
+        </div>
+
+        <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="min-w-full divide-y divide-slate-200 text-xs text-left" id="table-attention-queue">
+                <thead class="bg-slate-50 font-semibold text-slate-700">
+                    <tr>
+                        <th scope="col" class="py-3 px-4">FDR Number</th>
+                        <th scope="col" class="py-3 px-4">Institution</th>
+                        <th scope="col" class="py-3 px-4">Region</th>
+                        <th scope="col" class="py-3 px-4">Status</th>
+                        <th scope="col" class="py-3 px-4 text-right">Principal</th>
+                        <th scope="col" class="py-3 px-4">Maturity Date</th>
+                        <th scope="col" class="py-3 px-4 text-center">Trust</th>
+                        <th scope="col" class="py-3 px-4 text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 bg-white">
+                    {% for item in attention_items %}
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="py-2.5 px-4 font-bold text-slate-900 font-mono">
+                            <a href="/instruments/{{ item.id }}" class="text-aicte-700 hover:text-aicte-900 hover:underline">
+                                {{ item.fdr_number }}
+                            </a>
+                        </td>
+                        <td class="py-2.5 px-4">
+                            <div class="font-medium text-slate-900">{{ item.institution_name }}</div>
+                            <div class="text-[11px] text-slate-400 font-mono">{{ item.aicte_permanent_id }}</div>
+                        </td>
+                        <td class="py-2.5 px-4 text-slate-600">{{ item.region }}</td>
+                        <td class="py-2.5 px-4">
+                            {% if item.status == "DISCREPANCY_FLAGGED" %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-100 text-rose-800 border border-rose-200">FLAGGED</span>
+                            {% elif item.status == "MATURED" %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-red-100 text-red-800 border border-red-200">MATURED</span>
+                            {% elif item.status == "EXPIRING" %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-200">EXPIRING</span>
+                            {% elif item.status == "RELEASE_REQUESTED" %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-100 text-purple-800 border border-purple-200">RELEASE REQ</span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-800">{{ item.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2.5 px-4 text-right font-mono font-semibold text-slate-900">
+                            {{ item.principal_amount | format_inr_compact }}
+                        </td>
+                        <td class="py-2.5 px-4 font-mono text-slate-600">
+                            {{ item.maturity_date | format_date }}
+                        </td>
+                        <td class="py-2.5 px-4 text-center">
+                            {% if item.trust_score < 40 %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                                {{ item.trust_score }}
+                            </span>
+                            {% elif item.trust_score < 70 %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                {{ item.trust_score }}
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                {{ item.trust_score }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2.5 px-4 text-right">
+                            <a href="/instruments/{{ item.id }}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-aicte-700 hover:text-white bg-aicte-50 hover:bg-aicte-600 rounded transition border border-aicte-200 hover:border-transparent">
+                                Review &rarr;
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="py-8 text-center text-slate-500 text-sm">
+                            No instruments currently require urgent regulatory intervention.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Chart Initialization Script -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // 1. Maturity Wall Chart (Stacked Bar Chart)
+    const wallCtx = document.getElementById("maturity-wall-chart");
+    if (wallCtx) {
+        const wallLabels = {{ maturity_chart_labels | tojson }};
+        const activeData = {{ maturity_chart_active | tojson }};
+        const expiringData = {{ maturity_chart_expiring | tojson }};
+
+        new Chart(wallCtx, {
+            type: "bar",
+            data: {
+                labels: wallLabels,
+                datasets: [
+                    {
+                        label: "Active Deposits (₹)",
+                        data: activeData,
+                        backgroundColor: "#0284c7", // Sky-600
+                        borderRadius: 4,
+                        stack: "maturity",
+                    },
+                    {
+                        label: "Expiring Deposits (₹)",
+                        data: expiringData,
+                        backgroundColor: "#f59e0b", // Amber-500
+                        borderRadius: 4,
+                        stack: "maturity",
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: "top",
+                        labels: { boxWidth: 12, font: { size: 12, family: "sans-serif" } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const val = context.raw || 0;
+                                const cr = (val / 10000000).toFixed(2);
+                                return `${context.dataset.label}: ₹ ${cr} Cr (₹ ${Number(val).toLocaleString('en-IN')})`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        stacked: true,
+                        grid: { display: false },
+                        ticks: { font: { size: 11 } }
+                    },
+                    y: {
+                        stacked: true,
+                        grid: { color: "#f1f5f9" },
+                        ticks: {
+                            callback: function(value) {
+                                return "₹ " + (value / 10000000).toFixed(1) + " Cr";
+                            },
+                            font: { size: 11 }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. Regional Exposure Chart (Horizontal Bar Chart)
+    const regCtx = document.getElementById("regional-exposure-chart");
+    if (regCtx) {
+        const regLabels = {{ regional_chart_labels | tojson }};
+        const regData = {{ regional_chart_amounts | tojson }};
+
+        new Chart(regCtx, {
+            type: "bar",
+            data: {
+                labels: regLabels,
+                datasets: [
+                    {
+                        label: "In-Custody Capital (₹)",
+                        data: regData,
+                        backgroundColor: "#0f766e", // Teal-700
+                        borderRadius: 4,
+                    }
+                ]
+            },
+            options: {
+                indexAxis: "y",
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const val = context.raw || 0;
+                                const cr = (val / 10000000).toFixed(2);
+                                return `Capital: ₹ ${cr} Cr (₹ ${Number(val).toLocaleString('en-IN')})`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: "#f1f5f9" },
+                        ticks: {
+                            callback: function(value) {
+                                return "₹ " + (value / 10000000).toFixed(1) + " Cr";
+                            },
+                            font: { size: 11 }
+                        }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { font: { size: 11 } }
+                    }
+                }
+            }
+        });
+    }
+
+    // 3. Time Machine Synchronization: Reload dashboard when simulated clock changes
+    window.addEventListener("clockUpdated", function() {
+        window.location.reload();
+    });
+});
+</script>
+{% endblock %}

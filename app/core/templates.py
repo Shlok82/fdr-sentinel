@@ -135,9 +135,58 @@ def default_dash(val: Any) -> str:
     return str(val)
 
 
+def format_inr_compact(val: Any) -> str:
+    """Formats large Indian Rupee figures compactly with standard denomination suffixes.
+    
+    Examples:
+        None or ""   -> "—"
+        124000000    -> "₹ 12.40 Cr"
+        3500000      -> "₹ 35.00 L"
+        50000        -> "₹ 50,000"
+        -3500000     -> "-₹ 35.00 L"
+        0            -> "₹ 0"
+    """
+    if val is None or val == "":
+        return "—"
+    try:
+        d = Decimal(str(val))
+    except Exception:
+        return "—"
+
+    is_negative = d < 0
+    abs_d = abs(d)
+    sign = "-" if is_negative else ""
+
+    if abs_d >= Decimal("10000000"):  # >= 1 Crore (10^7)
+        cr_val = abs_d / Decimal("10000000")
+        return f"{sign}₹ {cr_val:.2f} Cr"
+    elif abs_d >= Decimal("100000"):   # >= 1 Lakh (10^5)
+        lakh_val = abs_d / Decimal("100000")
+        return f"{sign}₹ {lakh_val:.2f} L"
+    else:
+        if abs_d == int(abs_d):
+            s = str(int(abs_d))
+            if len(s) <= 3:
+                formatted = s
+            else:
+                last3 = s[-3:]
+                rest = s[:-3]
+                groups = []
+                while len(rest) > 2:
+                    groups.insert(0, rest[-2:])
+                    rest = rest[:-2]
+                if rest:
+                    groups.insert(0, rest)
+                formatted = ",".join(groups) + "," + last3
+            return f"{sign}₹ {formatted}"
+        else:
+            return format_inr(d)
+
+
 # Shared singleton Jinja2Templates environment
 templates = Jinja2Templates(directory="app/templates")
 templates.env.filters["format_inr"] = format_inr
+templates.env.filters["format_inr_compact"] = format_inr_compact
 templates.env.filters["format_date"] = format_date
 templates.env.filters["format_datetime"] = format_datetime
 templates.env.filters["format_filesize"] = format_filesize
