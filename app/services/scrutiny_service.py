@@ -306,6 +306,10 @@ class ScrutinyService:
             actor_ip=actor_ip,
         )
 
+        # 5. Recompute earned trust score
+        from app.services.trust_score import recompute_trust
+        recompute_trust(session=db, instrument_id=instrument.id)
+
         return updated_inst
 
     @classmethod

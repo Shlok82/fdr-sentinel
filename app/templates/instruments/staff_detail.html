@@ -795,6 +795,120 @@
         </div>
     </div>
 
+    <!-- Section: Earned Trust Score Breakdown -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+        <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Earned Trust Score Breakdown</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Algorithmic confidence rating computed from verified evidence and discrepancy findings.</p>
+            </div>
+            <div class="flex items-baseline space-x-1.5 self-start sm:self-auto">
+                <span class="text-3xl font-extrabold font-mono text-slate-900">{{ instrument.trust_score }}</span>
+                <span class="text-sm text-slate-400 font-mono">/ 100</span>
+                {% if instrument.trust_breakdown and instrument.trust_breakdown.clamped %}
+                <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200" title="Raw unconstrained total: {{ instrument.trust_breakdown.raw_total }}">
+                    Clamped (Raw: {{ instrument.trust_breakdown.raw_total }})
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="p-6">
+            {% set bd = instrument.trust_breakdown %}
+            {% if bd and bd.additions is defined %}
+            <div class="space-y-4">
+                <!-- Base Score -->
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 text-sm">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                        <span class="font-medium text-slate-800">Base Score</span>
+                        <span class="text-xs text-slate-500">(Standard self-declared submission floor)</span>
+                    </div>
+                    <span class="font-mono font-bold text-slate-800">+20</span>
+                </div>
+
+                <!-- Additions -->
+                <div>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Evidence Additions</h3>
+                    <ul class="space-y-2 text-sm">
+                        {% for add in bd.additions %}
+                        <li class="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2.5 rounded-lg border {% if add.earned %}bg-emerald-50/50 border-emerald-200{% else %}bg-slate-50/50 border-slate-200{% endif %}">
+                            <div class="flex items-start space-x-2">
+                                <span class="text-base mt-0.5 leading-none">{% if add.earned %}✓{% else %}○{% endif %}</span>
+                                <div>
+                                    <span class="font-medium text-slate-800">
+                                        {% if add.code == 'PDF_TEXT_LAYER' %}Digital PDF Text Layer
+                                        {% elif add.code == 'TEXT_MATCHES_FORM' %}Text-Layer Form Consistency
+                                        {% elif add.code == 'JOINT_CLAUSE_CONFIRMED' %}Joint AICTE Holding / Lien Clause
+                                        {% elif add.code == 'BANK_VERIFICATION' %}Bank Electronic Confirmation
+                                        {% else %}{{ add.code }}
+                                        {% endif %}
+                                    </span>
+                                    <p class="text-xs text-slate-500 mt-0.5">{{ add.reason }}</p>
+                                </div>
+                            </div>
+                            <span class="font-mono font-bold mt-1 sm:mt-0 self-end sm:self-auto {% if add.earned %}text-emerald-700{% else %}text-slate-400{% endif %}">
+                                {% if add.earned %}+{{ add.points }}{% else %}+0{% endif %}
+                            </span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <!-- Deductions -->
+                {% if bd.deductions and bd.deductions | length > 0 %}
+                <div>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-rose-600 mb-2">Discrepancy Deductions</h3>
+                    <ul class="space-y-2 text-sm">
+                        {% for ded in bd.deductions %}
+                        <li class="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2.5 rounded-lg border bg-rose-50/50 border-rose-200">
+                            <div class="flex items-start space-x-2">
+                                <span class="text-rose-600 text-base mt-0.5 leading-none">⚠</span>
+                                <div>
+                                    <span class="font-mono font-bold text-xs uppercase px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200 mr-1.5">
+                                        {{ ded.rule_code }}
+                                    </span>
+                                    <span class="font-medium text-slate-800">
+                                        {{ ded.description }}
+                                    </span>
+                                </div>
+                            </div>
+                            <span class="font-mono font-bold mt-1 sm:mt-0 self-end sm:self-auto text-rose-700">
+                                {% if ded.points > 0 %}-{{ ded.points }}{% else %}0{% endif %}
+                            </span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <!-- Raw total and calculation summary -->
+                <div class="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-slate-500 gap-2">
+                    <div>
+                        <span>Calculated Total: </span>
+                        <span class="font-mono font-bold text-slate-700">{{ bd.raw_total }}</span>
+                        {% if bd.clamped %}
+                        <span class="text-amber-700 font-medium">(clamped to {{ bd.total }})</span>
+                        {% endif %}
+                        {% if bd.computed_at %}
+                        <span class="ml-2 text-slate-400">· Computed {{ bd.computed_at | format_datetime }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center py-6 text-slate-500 text-sm">
+                <p>Breakdown not yet computed</p>
+                <p class="text-xs text-slate-400 mt-1">Trust breakdown will be computed upon verification or discrepancy check run.</p>
+            </div>
+            {% endif %}
+
+            <div class="mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-400">
+                Footnote: Advisory score. Decisions remain with the named officers.
+            </div>
+        </div>
+    </div>
+
     <!-- Alerts and Reminders -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">

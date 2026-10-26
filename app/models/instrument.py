@@ -26,6 +26,8 @@ class Instrument(Base):
     renewal_sequence = Column(Integer, default=1, nullable=False)
     trust_score = Column(Integer, default=20, nullable=False)
     trust_score_breakdown = Column(JSONB, default=dict, nullable=False)
+    trust_breakdown = Column(JSONB, nullable=True)
+    trust_computed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False)
     updated_at = Column(DateTime(timezone=True), nullable=False)
 

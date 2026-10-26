@@ -72,6 +72,10 @@ class VerificationService:
             actor_ip=actor_ip,
         )
 
+        # 4. Recompute earned trust score
+        from app.services.trust_score import recompute_trust
+        recompute_trust(session=db, instrument_id=instrument.id)
+
         return record, result
 
     @classmethod
@@ -150,6 +154,10 @@ class VerificationService:
             },
             actor_ip=actor_ip,
         )
+
+        # 4. Recompute earned trust score
+        from app.services.trust_score import recompute_trust
+        recompute_trust(session=db, instrument_id=instrument.id)
 
         return record, result
 

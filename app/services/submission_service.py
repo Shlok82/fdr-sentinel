@@ -12,6 +12,7 @@ from app.services.audit_service import AuditService
 from app.services.clock_service import clock_service
 from app.services.instrument_fsm import Actor, InstrumentState
 from app.services.discrepancy_engine import run_checks
+from app.services.trust_score import recompute_trust
 
 
 class FDRSubmissionService:
@@ -160,7 +161,15 @@ class FDRSubmissionService:
                 master_key_b64=master_key_b64,
             )
 
-            # 7. Commit the entire transaction atomically
+            # 7. Recompute earned trust score from verified inputs
+            recompute_trust(
+                session=db,
+                instrument_id=instrument.id,
+                vault_base=vault_base,
+                master_key_b64=master_key_b64,
+            )
+
+            # 8. Commit the entire transaction atomically
             db.commit()
             db.refresh(instrument)
             return instrument

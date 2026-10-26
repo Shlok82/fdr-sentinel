@@ -666,6 +666,17 @@ def run_checks(
         },
     )
 
+    # -------------------------------------------------------------------------
+    # Recompute Earned Trust Score
+    # -------------------------------------------------------------------------
+    from app.services.trust_score import recompute_trust
+    recompute_trust(
+        session=session,
+        instrument_id=instrument.id,
+        vault_base=vault_base,
+        master_key_b64=master_key_b64,
+    )
+
     return CheckRunSummary(
         instrument_id=instrument.id,
         status=instrument.status,
