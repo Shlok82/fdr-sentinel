@@ -8,6 +8,8 @@ from app.models.verification import VerificationRecord
 from app.models.scrutiny import ScrutinyNote
 from app.models.release import ReleaseRequest
 from app.models.alert import Alert
+from app.models.notification import Notification
+from app.models.scheduler import SchedulerRun, SchedulerState
 from app.models.audit import AuditLog
 from app.models.clock import ClockState
 from app.models.discrepancy import DiscrepancyTicket
@@ -23,6 +25,9 @@ __all__ = [
     "ScrutinyNote",
     "ReleaseRequest",
     "Alert",
+    "Notification",
+    "SchedulerRun",
+    "SchedulerState",
     "AuditLog",
     "ClockState",
     "DiscrepancyTicket",

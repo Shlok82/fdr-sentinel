@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 import pytest
 from sqlalchemy.orm import Session
 from app.services.clock_service import ClockService, clock_service
@@ -7,7 +8,7 @@ from app.core.config import settings
 
 def test_clock_advance_persists_and_restores(app_session: Session):
     """advance(30) shifts clock by 30 days, persists to database, and is seen by a new instance."""
-    real_today = datetime.now(timezone.utc).date()  # clock-allow: test fixture reference
+    real_today = datetime.now(ZoneInfo("Asia/Kolkata")).date()  # clock-allow: test fixture reference
     
     # Advance clock by 30 days
     new_offset = clock_service.advance(app_session, 30)
@@ -28,7 +29,7 @@ def test_clock_advance_persists_and_restores(app_session: Session):
 
 def test_clock_reset_restores_real_time(app_session: Session):
     """reset() restores clock back to 0 offset and writes audit log."""
-    real_today = datetime.now(timezone.utc).date()  # clock-allow: test fixture reference
+    real_today = datetime.now(ZoneInfo("Asia/Kolkata")).date()  # clock-allow: test fixture reference
     
     clock_service.advance(app_session, 60)
     app_session.commit()

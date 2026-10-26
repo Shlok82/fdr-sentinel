@@ -7,13 +7,26 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from contextlib import asynccontextmanager
 from pathlib import Path
 from app.core.config import settings
 from app.core.templates import templates
-from app.routers import health, auth, demo, pages, instruments
+from app.routers import health, auth, demo, pages, instruments, temporal
 from app.services.clock_service import clock_service
 
 logger = logging.getLogger("uvicorn.error")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if settings.SCHEDULER_ENABLED:
+        from app.scheduler import start_scheduler, stop_scheduler
+        start_scheduler()
+    yield
+    if settings.SCHEDULER_ENABLED:
+        from app.scheduler import stop_scheduler
+        stop_scheduler()
+
 
 # Initialize FastAPI application
 app = FastAPI(
@@ -22,7 +35,8 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
+    lifespan=lifespan,
 )
 
 # CORS middleware configuration
@@ -205,6 +219,7 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(demo.router)
 app.include_router(instruments.router)
+app.include_router(temporal.router)
 app.include_router(pages.router)
 
 

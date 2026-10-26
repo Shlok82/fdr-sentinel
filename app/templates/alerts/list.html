@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}System Alerts Log | FDR Sentinel{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">System-Wide Alerts & Reminders Log</h1>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                Audited ledger of proactive lifecycle alerts, catch-up reminders, and regulatory escalations.
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="/scheduler" class="inline-flex items-center px-3 py-1.5 border border-slate-300 rounded text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition">
+                Scheduler Status &rarr;
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form method="GET" action="/alerts" class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex flex-wrap items-center gap-3 text-xs">
+        <div>
+            <label for="severity" class="block font-semibold text-slate-600 mb-1">Severity</label>
+            <select name="severity" id="severity" class="border border-slate-300 rounded px-2.5 py-1 text-xs bg-white text-slate-700">
+                <option value="">All Severities</option>
+                <option value="INFO" {% if selected_severity == 'INFO' %}selected{% endif %}>INFO</option>
+                <option value="WARNING" {% if selected_severity == 'WARNING' %}selected{% endif %}>WARNING</option>
+                <option value="URGENT" {% if selected_severity == 'URGENT' %}selected{% endif %}>URGENT</option>
+                <option value="CRITICAL" {% if selected_severity == 'CRITICAL' %}selected{% endif %}>CRITICAL</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="status" class="block font-semibold text-slate-600 mb-1">Status</label>
+            <select name="status" id="status" class="border border-slate-300 rounded px-2.5 py-1 text-xs bg-white text-slate-700">
+                <option value="">All Statuses</option>
+                <option value="OPEN" {% if selected_status == 'OPEN' %}selected{% endif %}>OPEN (Active)</option>
+                <option value="SUPERSEDED" {% if selected_status == 'SUPERSEDED' %}selected{% endif %}>SUPERSEDED (Catch-up Marker)</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="alert_type" class="block font-semibold text-slate-600 mb-1">Alert Type</label>
+            <input type="text" name="alert_type" id="alert_type" value="{{ selected_alert_type or '' }}" placeholder="e.g. MATURITY_REMINDER_15D" class="border border-slate-300 rounded px-2.5 py-1 text-xs text-slate-700 placeholder-slate-400">
+        </div>
+
+        <div class="self-end pt-1">
+            <button type="submit" class="bg-aicte-600 hover:bg-aicte-700 text-white font-medium px-4 py-1.5 rounded transition">
+                Filter
+            </button>
+            <a href="/alerts" class="ml-2 text-slate-500 hover:text-slate-800">Clear</a>
+        </div>
+    </form>
+
+    <!-- Alerts Table -->
+    {% if alerts %}
+    <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200 text-xs text-left">
+            <thead class="bg-slate-50 text-slate-600 uppercase font-semibold">
+                <tr>
+                    <th class="px-4 py-3">Business Date</th>
+                    <th class="px-4 py-3">Severity</th>
+                    <th class="px-4 py-3">Alert Type</th>
+                    <th class="px-4 py-3">Status</th>
+                    <th class="px-4 py-3">FDR Number</th>
+                    <th class="px-4 py-3">Institution</th>
+                    <th class="px-4 py-3">Created (IST)</th>
+                    <th class="px-4 py-3 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for alert, inst, institution in alerts %}
+                <tr class="hover:bg-slate-50/80 transition">
+                    <td class="px-4 py-3 font-mono font-medium text-slate-800">{{ alert.business_date }}</td>
+                    <td class="px-4 py-3">
+                        {% if alert.severity == 'CRITICAL' %}
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-100 text-rose-800 border border-rose-300">Critical</span>
+                        {% elif alert.severity == 'URGENT' %}
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 text-amber-800 border border-amber-300">Urgent</span>
+                        {% elif alert.severity == 'WARNING' %}
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-yellow-100 text-yellow-800 border border-yellow-300">Warning</span>
+                        {% else %}
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-sky-100 text-sky-800 border border-sky-300">Info</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 font-mono font-semibold text-slate-900">{{ alert.alert_type }}</td>
+                    <td class="px-4 py-3">
+                        {% if alert.status == 'OPEN' %}
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800">OPEN</span>
+                        {% else %}
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-medium uppercase bg-slate-100 text-slate-600" title="Catch-up marker; superseded by more urgent threshold">SUPERSEDED</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 font-mono text-slate-800">{{ inst.fdr_number or '—' }}</td>
+                    <td class="px-4 py-3 text-slate-700 truncate max-w-xs">{{ institution.name if institution else '—' }}</td>
+                    <td class="px-4 py-3 font-mono text-slate-500">{{ alert.created_at | format_datetime }}</td>
+                    <td class="px-4 py-3 text-right">
+                        <a href="/staff/instruments/{{ inst.id }}" class="text-aicte-600 hover:text-aicte-800 font-semibold">
+                            View FDR &rarr;
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="bg-white border border-slate-200 rounded-lg p-12 text-center">
+        <h3 class="text-sm font-semibold text-slate-900">No alerts found</h3>
+        <p class="mt-1 text-xs text-slate-500">No alert records match the specified query filters.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}{{ notification.subject }} | FDR Sentinel{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <!-- Breadcrumb / Back link -->
+    <div class="flex items-center justify-between">
+        <a href="/notifications" class="text-xs text-aicte-600 hover:text-aicte-800 font-medium flex items-center gap-1">
+            &larr; Back to Notifications
+        </a>
+
+        {% if instrument %}
+            {% if user.role == 'INSTITUTION_ADMIN' %}
+            <a href="/institution/instruments/{{ instrument.id }}" class="inline-flex items-center px-3 py-1 rounded bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 transition">
+                View FDR {{ instrument.fdr_number or instrument.id }} &rarr;
+            </a>
+            {% else %}
+            <a href="/staff/instruments/{{ instrument.id }}" class="inline-flex items-center px-3 py-1 rounded bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 transition">
+                View FDR in Workstation &rarr;
+            </a>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <!-- Prototype Simulated Delivery Disclaimer Banner -->
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 flex items-start gap-2.5">
+        <svg class="w-4 h-4 text-amber-600 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+        </svg>
+        <div>
+            <span class="font-bold">Delivery Simulated:</span> In production this notice would be dispatched via National Informatics Centre (NIC) SMS Gateway and AICTE SMTP Relay.
+        </div>
+    </div>
+
+    <!-- Notification Main Card -->
+    <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+        <!-- Card Header -->
+        <div class="p-6 border-b border-slate-100 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    {% if alert.severity == 'CRITICAL' %}
+                    <span class="px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-300">Critical Severity</span>
+                    {% elif alert.severity == 'URGENT' %}
+                    <span class="px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300">Urgent Severity</span>
+                    {% elif alert.severity == 'WARNING' %}
+                    <span class="px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-yellow-100 text-yellow-800 border border-yellow-300">Warning</span>
+                    {% else %}
+                    <span class="px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-sky-100 text-sky-800 border border-sky-300">Info</span>
+                    {% endif %}
+
+                    <span class="text-xs font-mono font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                        {{ alert.alert_type }}
+                    </span>
+                </div>
+
+                <div class="text-xs text-slate-500 font-mono">
+                    Received: <strong>{{ notification.created_at | format_datetime }}</strong>
+                </div>
+            </div>
+
+            <h1 class="text-xl font-bold text-slate-900 leading-snug">{{ notification.subject }}</h1>
+
+            <div class="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1">
+                <div>Audience: <strong class="text-slate-700 font-mono">{{ notification.audience_role }}</strong></div>
+                <span>•</span>
+                <div>Channels: 
+                    {% for ch in notification.channels %}
+                    <span class="font-mono uppercase font-semibold text-slate-700">{{ ch }}</span>{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </div>
+                <span>•</span>
+                <div>Status: <span class="text-emerald-700 font-medium">Read on {{ notification.read_at | format_datetime }}</span></div>
+            </div>
+        </div>
+
+        <!-- In-App Plain Text Notice Body -->
+        <div class="p-6 bg-slate-50/50">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Notice Body (Official Dispatch)</h2>
+            <div class="bg-white border border-slate-200 rounded p-4 font-mono text-xs sm:text-sm text-slate-800 whitespace-pre-wrap leading-relaxed shadow-inner">
+{{ notification.body }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Simulated Multi-Channel Previews -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Email Preview -->
+        <div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                    Simulated Email Preview
+                </span>
+                <span class="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded font-mono text-slate-600">SMTP Relay</span>
+            </div>
+            <div class="text-xs space-y-1.5 text-slate-600 bg-slate-50 p-3 rounded border border-slate-100">
+                <div><strong class="text-slate-800">From:</strong> aicte-fdr-sentinel@nic.in</div>
+                <div><strong class="text-slate-800">To:</strong> {{ notification.audience_role | lower }}@aicte-sample.gov.in</div>
+                <div><strong class="text-slate-800">Subject:</strong> {{ notification.subject }}</div>
+            </div>
+            <div class="text-xs text-slate-600 max-h-36 overflow-y-auto whitespace-pre-wrap border border-slate-100 p-2.5 rounded bg-white font-mono text-[11px]">
+{{ notification.body }}
+            </div>
+        </div>
+
+        <!-- SMS Preview -->
+        <div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    Simulated SMS Preview
+                </span>
+                <span class="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded font-mono text-slate-600">NIC SMS Gateway</span>
+            </div>
+            <div class="text-xs text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-100 flex justify-between items-center">
+                <span><strong>Recipient:</strong> +91 98XXX XXXXX</span>
+                <span class="font-mono text-[11px] text-slate-500">{{ notification.sms_text | length }} / 320 chars</span>
+            </div>
+            <div class="bg-emerald-50/50 border border-emerald-200 rounded-lg p-3 text-xs font-mono text-emerald-950 leading-relaxed shadow-inner">
+                {{ notification.sms_text }}
+            </div>
+            <p class="text-[10px] text-slate-400">
+                Dispatched under DLT Template ID: <span class="font-mono">AICTE-FDR-{{ alert.alert_type[:10] }}</span>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

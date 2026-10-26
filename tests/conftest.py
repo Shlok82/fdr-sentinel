@@ -17,6 +17,7 @@ from app.services.clock_service import clock_service
 # Lower bcrypt rounds during tests for high performance
 settings.BCRYPT_ROUNDS = 4
 settings.MOCK_BANK_LATENCY_MS = 0
+settings.SCHEDULER_ENABLED = False
 
 # Derive test database URLs
 TEST_OWNER_URL = os.getenv("TEST_OWNER_DATABASE_URL", settings.TEST_OWNER_DATABASE_URL)
@@ -77,9 +78,11 @@ def clean_database_between_tests():
     with test_owner_engine.connect() as conn:
         conn.execute(text("TRUNCATE TABLE audit_log RESTART IDENTITY CASCADE;"))
         conn.execute(text("TRUNCATE TABLE instruments RESTART IDENTITY CASCADE;"))
+        conn.execute(text("TRUNCATE TABLE scheduler_runs RESTART IDENTITY CASCADE;"))
         conn.execute(text("TRUNCATE TABLE users CASCADE;"))
         conn.execute(text("TRUNCATE TABLE institutions CASCADE;"))
         conn.execute(text("UPDATE clock_state SET offset_seconds = 0, updated_at = '1970-01-01 00:00:00+00' WHERE id = 1;"))
+        conn.execute(text("UPDATE scheduler_state SET last_tick_at = NULL, last_success_at = NULL, last_effective_run_id = NULL WHERE id = 1;"))
         conn.commit()
 
     clock_service._offset_seconds = 0
@@ -89,9 +92,11 @@ def clean_database_between_tests():
     with test_owner_engine.connect() as conn:
         conn.execute(text("TRUNCATE TABLE audit_log RESTART IDENTITY CASCADE;"))
         conn.execute(text("TRUNCATE TABLE instruments RESTART IDENTITY CASCADE;"))
+        conn.execute(text("TRUNCATE TABLE scheduler_runs RESTART IDENTITY CASCADE;"))
         conn.execute(text("TRUNCATE TABLE users CASCADE;"))
         conn.execute(text("TRUNCATE TABLE institutions CASCADE;"))
         conn.execute(text("UPDATE clock_state SET offset_seconds = 0, updated_at = '1970-01-01 00:00:00+00' WHERE id = 1;"))
+        conn.execute(text("UPDATE scheduler_state SET last_tick_at = NULL, last_success_at = NULL, last_effective_run_id = NULL WHERE id = 1;"))
         conn.commit()
 
 

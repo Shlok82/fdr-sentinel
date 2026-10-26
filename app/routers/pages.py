@@ -19,9 +19,13 @@ from app.services.instrument_fsm import InstrumentState, compute_status_counts, 
 router = APIRouter(include_in_schema=False)
 
 
-def common_context(request: Request, user: Optional[User]) -> dict:
+def common_context(request: Request, user: Optional[User], db: Optional[Session] = None) -> dict:
     """Constructs baseline template context available across all pages."""
     csrf_token = request.cookies.get(settings.CSRF_COOKIE_NAME, "")
+    unread_count = 0
+    if db and user:
+        from app.routers.temporal import get_unread_notifications_count
+        unread_count = get_unread_notifications_count(db, user)
     return {
         "request": request,
         "user": user,
@@ -30,6 +34,7 @@ def common_context(request: Request, user: Optional[User]) -> dict:
         "demo_mode": settings.DEMO_MODE,
         "simulated_date_str": clock_service.display_simulated_date,
         "csrf_token": csrf_token,
+        "unread_notifications_count": unread_count,
     }
 
 
@@ -55,7 +60,7 @@ def index_page(
     except Exception:
         system_status = "Degraded"
 
-    ctx = common_context(request, user)
+    ctx = common_context(request, user, db=db)
     ctx["system_status"] = system_status
     return templates.TemplateResponse("index.html", ctx)
 
@@ -82,7 +87,7 @@ def institution_workspace(
     db: Session = Depends(get_db)
 ):
     """Institution administrator workspace."""
-    ctx = common_context(request, user)
+    ctx = common_context(request, user, db=db)
     ctx["role_title"] = "Institution Portal — FDR Custody & Submissions"
     ctx["role_description"] = "Submit new Fixed Deposit Receipts, track verification status, and manage deposit custody."
 
@@ -132,7 +137,7 @@ def scrutiny_workspace(
     db: Session = Depends(get_db)
 ):
     """AICTE Scrutiny Officer workstation with active review queue."""
-    ctx = common_context(request, user)
+    ctx = common_context(request, user, db=db)
     ctx["role_title"] = "Scrutiny Officer Workstation"
     ctx["role_description"] = "Review incoming FDR submissions, inspect automated discrepancy flags, and verify bank provenance."
 
@@ -202,7 +207,7 @@ def approver_workspace(
     db: Session = Depends(get_db)
 ):
     """Competent Authority release authorization workstation."""
-    ctx = common_context(request, user)
+    ctx = common_context(request, user, db=db)
     ctx["role_title"] = "Competent Authority Workstation"
     ctx["role_description"] = "Review compliance checklists and issue dual-key cryptographic authorizations for deposit releases."
 
@@ -288,7 +293,7 @@ def auditor_workspace(
     db: Session = Depends(get_db)
 ):
     """System Auditor workspace."""
-    ctx = common_context(request, user)
+    ctx = common_context(request, user, db=db)
     ctx["role_title"] = "Regulatory Audit & Vigilance Console"
     ctx["role_description"] = "Inspect the cryptographic SHA-256 audit log hash chain and verify regulatory compliance."
 
@@ -363,7 +368,7 @@ def audit_verify_page(
     # Perform linear-time verification of the audit log hash chain
     result = verify_chain(db)
 
-    ctx = common_context(request, user)
+    ctx = common_context(request, user, db=db)
     ctx["verify_result"] = result
     ctx["is_full_auditor"] = (user.role == "AUDITOR" and not user.is_demo_admin)
     ctx["checked_at"] = clock_service.display_time

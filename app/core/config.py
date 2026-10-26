@@ -48,6 +48,23 @@ class Settings(BaseSettings):
     # Temporal & Localization Settings
     DISPLAY_TIMEZONE: str = "Asia/Kolkata"
 
+    # Temporal Engine & Scheduler Automation (Tier 2)
+    SCHEDULER_ENABLED: bool = True
+    SCHEDULER_INTERVAL_MINUTES: int = 15
+    EXPIRING_WINDOW_DAYS: int = 90
+    REMINDER_THRESHOLDS_DAYS: str = "90,60,30,7"
+    TIER2_MAX_DAYS: int = 30
+    URGENT_MAX_DAYS: int = 7
+    OVERDUE_ESCALATION_DAYS: int = 15
+    PENDING_REVIEW_ALERT_DAYS: int = 7
+    UNRESOLVED_FLAG_ALERT_DAYS: int = 14
+
+    @property
+    def reminder_thresholds(self) -> list[int]:
+        """Parsed list of integer reminder thresholds (guaranteed positive, strictly decreasing, unique)."""
+        raw = [x.strip() for x in self.REMINDER_THRESHOLDS_DAYS.split(",") if x.strip()]
+        return [int(x) for x in raw]
+
     @property
     def display_tz(self) -> ZoneInfo:
         return ZoneInfo(self.DISPLAY_TIMEZONE)
@@ -91,6 +108,59 @@ class Settings(BaseSettings):
             ZoneInfo(self.DISPLAY_TIMEZONE)
         except Exception as exc:
             raise ValueError(f"Configuration error: Invalid DISPLAY_TIMEZONE '{self.DISPLAY_TIMEZONE}': {exc}")
+
+        # Validate Temporal & Scheduler Settings (Tier 2)
+        if self.SCHEDULER_INTERVAL_MINUTES < 1:
+            raise ValueError("Configuration error: SCHEDULER_INTERVAL_MINUTES must be at least 1.")
+
+        for day_field in [
+            "EXPIRING_WINDOW_DAYS",
+            "TIER2_MAX_DAYS",
+            "URGENT_MAX_DAYS",
+            "OVERDUE_ESCALATION_DAYS",
+            "PENDING_REVIEW_ALERT_DAYS",
+            "UNRESOLVED_FLAG_ALERT_DAYS",
+        ]:
+            val = getattr(self, day_field)
+            if not isinstance(val, int) or val <= 0:
+                raise ValueError(f"Configuration error: {day_field} must be a positive integer (> 0).")
+
+        raw_thresholds = [x.strip() for x in self.REMINDER_THRESHOLDS_DAYS.split(",") if x.strip()]
+        if not raw_thresholds:
+            raise ValueError("Configuration error: REMINDER_THRESHOLDS_DAYS must be a comma-separated list of positive integers.")
+
+        parsed_thresholds: list[int] = []
+        for x in raw_thresholds:
+            try:
+                parsed_thresholds.append(int(x))
+            except ValueError:
+                raise ValueError(f"Configuration error: REMINDER_THRESHOLDS_DAYS contains non-integer threshold '{x}'.")
+
+        for t in parsed_thresholds:
+            if t <= 0:
+                raise ValueError("Configuration error: REMINDER_THRESHOLDS_DAYS must contain only positive integers (> 0).")
+
+        if len(parsed_thresholds) != len(set(parsed_thresholds)):
+            raise ValueError("Configuration error: REMINDER_THRESHOLDS_DAYS contains duplicate threshold values.")
+
+        for i in range(len(parsed_thresholds) - 1):
+            if parsed_thresholds[i] <= parsed_thresholds[i + 1]:
+                raise ValueError("Configuration error: REMINDER_THRESHOLDS_DAYS must be strictly decreasing.")
+
+        if self.EXPIRING_WINDOW_DAYS < parsed_thresholds[0]:
+            raise ValueError(
+                f"Configuration error: EXPIRING_WINDOW_DAYS ({self.EXPIRING_WINDOW_DAYS}) cannot be less than the largest reminder threshold ({parsed_thresholds[0]})."
+            )
+
+        if self.TIER2_MAX_DAYS >= self.EXPIRING_WINDOW_DAYS:
+            raise ValueError(
+                f"Configuration error: TIER2_MAX_DAYS ({self.TIER2_MAX_DAYS}) must be strictly less than EXPIRING_WINDOW_DAYS ({self.EXPIRING_WINDOW_DAYS})."
+            )
+
+        if self.URGENT_MAX_DAYS >= self.TIER2_MAX_DAYS:
+            raise ValueError(
+                f"Configuration error: URGENT_MAX_DAYS ({self.URGENT_MAX_DAYS}) must be strictly less than TIER2_MAX_DAYS ({self.TIER2_MAX_DAYS})."
+            )
 
         return self
 

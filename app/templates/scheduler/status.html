@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Scheduler Status & Lifecycle Automation | FDR Sentinel{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Temporal Lifecycle Engine & Scheduler</h1>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                APScheduler background daemon, automated state progression, and proactive maturity alert orchestration.
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            {% if user.is_demo_admin %}
+            <form method="POST" action="/scheduler/run">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="inline-flex items-center px-3.5 py-1.5 border border-transparent rounded shadow-sm text-xs font-semibold text-white bg-aicte-600 hover:bg-aicte-700 focus:outline-none focus:ring-2 focus:ring-aicte-500 transition">
+                    Run Temporal Cycle Now (Manual)
+                </button>
+            </form>
+            {% endif %}
+            <a href="/alerts" class="inline-flex items-center px-3 py-1.5 border border-slate-300 rounded text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition">
+                View Alerts Log &rarr;
+            </a>
+        </div>
+    </div>
+
+    <!-- Heartbeat & Rules Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Daemon Heartbeat -->
+        <div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-600">Engine Heartbeat</h2>
+                {% if config_info.scheduler_enabled %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
+                    DAEMON RUNNING
+                </span>
+                {% else %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600">
+                    DISABLED IN CONFIG
+                </span>
+                {% endif %}
+            </div>
+
+            <div class="text-xs space-y-2 text-slate-700">
+                <div class="flex justify-between py-1 border-b border-slate-100">
+                    <span class="text-slate-500">Check Interval:</span>
+                    <strong class="font-mono">{{ config_info.interval_minutes }} minutes</strong>
+                </div>
+                <div class="flex justify-between py-1 border-b border-slate-100">
+                    <span class="text-slate-500">Last Engine Tick:</span>
+                    <strong class="font-mono text-slate-900">{{ state.last_tick_at | format_datetime if state and state.last_tick_at else 'Never' }}</strong>
+                </div>
+                <div class="flex justify-between py-1 border-b border-slate-100">
+                    <span class="text-slate-500">Last Successful Run:</span>
+                    <strong class="font-mono text-slate-900">{{ state.last_success_at | format_datetime if state and state.last_success_at else 'Never' }}</strong>
+                </div>
+                <div class="flex justify-between py-1">
+                    <span class="text-slate-500">Current Business Date:</span>
+                    <strong class="font-mono text-aicte-700">{{ current_time }}</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alert Rules & Thresholds -->
+        <div class="bg-white border border-slate-200 rounded-lg p-5 shadow-sm space-y-3 md:col-span-2">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-600">Automated Alert Rules & Thresholds</h2>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div class="p-3 bg-slate-50 rounded border border-slate-200">
+                    <span class="text-slate-500 block mb-1">Maturity Window</span>
+                    <div class="font-bold text-sm text-slate-900 font-mono">{{ config_info.expiring_window_days }} Days</div>
+                    <p class="text-[11px] text-slate-500 mt-1">Transitions <span class="font-mono">ACTIVE &rarr; EXPIRING</span> when remaining days &le; 90.</p>
+                </div>
+
+                <div class="p-3 bg-slate-50 rounded border border-slate-200">
+                    <span class="text-slate-500 block mb-1">Reminder Thresholds</span>
+                    <div class="font-bold text-sm text-slate-900 font-mono">{{ config_info.reminder_thresholds | join(", ") }}d</div>
+                    <p class="text-[11px] text-slate-500 mt-1">Proactive multi-channel notifications sent to Institution Admin.</p>
+                </div>
+
+                <div class="p-3 bg-slate-50 rounded border border-slate-200">
+                    <span class="text-slate-500 block mb-1">Overdue Escalation</span>
+                    <div class="font-bold text-sm text-slate-900 font-mono">{{ config_info.overdue_escalation_days }} Days Past</div>
+                    <p class="text-[11px] text-slate-500 mt-1">Escalates unrenewed matured FDRs to Approving Authority.</p>
+                </div>
+            </div>
+
+            <div class="pt-1 text-[11px] text-slate-500 flex flex-wrap gap-4">
+                <div>Aging Submissions Alert: <strong class="font-mono text-slate-700">&ge; {{ config_info.pending_review_alert_days }}d</strong></div>
+                <div>Unresolved Discrepancy Escalation: <strong class="font-mono text-slate-700">&ge; {{ config_info.unresolved_flag_alert_days }}d</strong></div>
+                <div>Advisory Lock: <span class="font-mono text-slate-700">pg_advisory_lock(99887766)</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Runs Table -->
+    <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+            <h2 class="text-sm font-bold text-slate-900">Recent Scheduler Execution History</h2>
+            <span class="text-xs text-slate-500">Showing last {{ runs | length }} cycles</span>
+        </div>
+
+        {% if runs %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-xs text-left">
+                <thead class="bg-slate-50 text-slate-600 uppercase font-semibold">
+                    <tr>
+                        <th class="px-4 py-3">Trigger</th>
+                        <th class="px-4 py-3">Business Date</th>
+                        <th class="px-4 py-3">Started (IST)</th>
+                        <th class="px-4 py-3">Duration</th>
+                        <th class="px-4 py-3 text-center">Transitions</th>
+                        <th class="px-4 py-3 text-center">Alerts</th>
+                        <th class="px-4 py-3 text-center">Superseded</th>
+                        <th class="px-4 py-3 text-center">Examined / Skip</th>
+                        <th class="px-4 py-3 text-center">Errors</th>
+                        <th class="px-4 py-3">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for run in runs %}
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="px-4 py-3">
+                            <span class="font-mono font-semibold px-2 py-0.5 rounded text-[10px] uppercase bg-slate-100 border border-slate-200 text-slate-800">
+                                {{ run.trigger }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 font-mono text-slate-800">{{ run.business_date }}</td>
+                        <td class="px-4 py-3 font-mono text-slate-500">{{ run.started_at | format_datetime }}</td>
+                        <td class="px-4 py-3 font-mono text-slate-600">
+                            {{ run.duration_ms }} ms
+                        </td>
+                        <td class="px-4 py-3 font-mono text-center font-semibold text-slate-800">{{ run.transitions_count }}</td>
+                        <td class="px-4 py-3 font-mono text-center font-semibold text-amber-700">{{ run.alerts_created }}</td>
+                        <td class="px-4 py-3 font-mono text-center text-slate-500">{{ run.alerts_superseded }}</td>
+                        <td class="px-4 py-3 font-mono text-center text-slate-600">{{ run.instruments_examined }} / {{ run.instruments_skipped }}</td>
+                        <td class="px-4 py-3 font-mono text-center font-semibold {% if run.errors_count > 0 %}text-rose-600{% else %}text-slate-400{% endif %}">
+                            {{ run.errors_count }}
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if run.status == 'SUCCESS' %}
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800">SUCCESS</span>
+                            {% elif run.status == 'PARTIAL' %}
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 text-amber-800">PARTIAL</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-100 text-rose-800">FAILED</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-8 text-center text-xs text-slate-500">
+            No scheduler runs recorded yet.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

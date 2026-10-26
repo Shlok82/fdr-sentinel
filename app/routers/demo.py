@@ -64,6 +64,16 @@ def time_machine_clock_control(
 
     db.commit()
 
+    cycle_run = None
+    cycle_summary = ""
+    try:
+        from app.services.temporal_cycle import run_temporal_cycle
+        cycle_run = run_temporal_cycle(trigger="TIME_MACHINE", caller_session=db)
+        if cycle_run:
+            cycle_summary = f"Life-cycle tick executed: {cycle_run.transitions_count} transitions, {cycle_run.alerts_created} alerts generated."
+    except Exception as exc:
+        cycle_summary = "Life-cycle tick failed or skipped."
+
     is_htmx = bool(request.headers.get("HX-Request"))
     simulated_date_str = clock_service.format_today()
     current_time_str = clock_service.display_time
@@ -78,6 +88,8 @@ def time_machine_clock_control(
             "user": user,
             "demo_mode": settings.DEMO_MODE,
             "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
+            "cycle_summary": cycle_summary,
+            "cycle_run": cycle_run,
         }
         # Include HX-Trigger header so client-side listeners can refresh components
         headers = {"HX-Trigger": "clockUpdated"}
@@ -90,6 +102,9 @@ def time_machine_clock_control(
         "offset_seconds": clock_service.offset_seconds,
         "current_time": current_time_str,
         "simulated_date": simulated_date_str,
+        "cycle_summary": cycle_summary,
+        "transitions_count": cycle_run.transitions_count if cycle_run else 0,
+        "alerts_created": cycle_run.alerts_created if cycle_run else 0,
     })
 
 

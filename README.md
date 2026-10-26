@@ -34,10 +34,10 @@ Technical education institutions seeking approval from the All India Council for
 | **Tamper-Detecting Hash Chain** | SHA-256 canonical JSON chain with DB-level privilege revocation. | **Tier 1** | `Done` |
 | **Encrypted Submission Vault** | AES-256-GCM envelope encryption with master KEK. | **Tier 1** | `Done` |
 | **11-State Finite State Machine** | Strict lifecycle transitions, prior-state restoration, and DB CHECK constraint. | **Tier 1** | `Done` |
-| **Deterministic Discrepancy Rules** | Core checks (DISC-01 to DISC-06, DISC-08) including duplicate isolation. | **Tier 1** | `Planned` |
-| **Scrutiny Officer Console** | HTMX-powered review workstation with anomaly indicators. | **Tier 1** | `Planned` |
-| **Temporal Alerts & Scheduler** | APScheduler single-process worker, 90/60/30/7-day horizons, catch-up. | **Tier 2** | `Planned` |
-| **Demo "Time Machine" Clock** | Dedicated toolbar for `is_demo_admin` when `DEMO_MODE=true`. | **Tier 2** | `Done` (clock control; scheduler integration pending) |
+| **Deterministic Discrepancy Rules** | Core checks (DISC-01 to DISC-06, DISC-08) including duplicate isolation. | **Tier 1** | `Done` |
+| **Scrutiny Officer Console** | HTMX-powered review workstation with anomaly indicators and mock/manual verification. | **Tier 1** | `Done` |
+| **Temporal Alerts & Scheduler** | APScheduler single-process worker, 90/60/30/7-day horizons, catch-up, notification drawer. | **Tier 2** | `Done` |
+| **Demo "Time Machine" Clock** | Dedicated toolbar for `is_demo_admin` when `DEMO_MODE=true` with temporal cycle trigger. | **Tier 2** | `Done` |
 | **Maturity Wall & Risk Dashboard** | Executive Chart.js visualization of deposits at risk and monthly tranches. | **Tier 2** | `Planned` |
 | **Earned Trust Score Calculator** | Low base (20) + evidence additions - rule deductions (0–100). | **Tier 2** | `Planned` |
 | **Bilingual Official Notices** | English and Hindi notice templates for official communication. | **Tier 2** | `Planned` |
@@ -132,7 +132,7 @@ graph TD
 * **UI & Interactivity:** Jinja2 templates + HTMX (dynamic, SPA-like partial DOM updates without client build pipelines) + Tailwind CSS + Lucide Icons. Local vendored static assets (`htmx.min.js`, `tailwind.min.js`) ensure no third-party CDN dependencies for current pages (vendored assets).
 * **Visualizations:** Chart.js (rendered on native HTML5 canvas for the Maturity Wall and regional risk exposure; planned).
 * **Database & Roles:** PostgreSQL 16+ with strict role segregation: administrative migrations and seeding run under `fdr_owner`; application runtime executes strictly under `fdr_app_user` with `UPDATE`, `DELETE`, and `TRUNCATE` revoked on `audit_log`. Separate `fdr_sentinel_test` database for automated tests.
-* **Scheduler:** APScheduler 3.x (Single-process worker executing scans against `ClockService`; planned).
+* **Scheduler:** APScheduler 3.x (Single-process worker executing scans against `ClockService` with advisory locking, startup catch-up, and per-instrument transaction isolation).
 * **Security & Crypto:** `cryptography` (AES-256-GCM envelope encryption with master KEK, SHA-256 canonical hash chains, Bcrypt password hashing with constant-time dummy timing mitigation, double-submit cookie CSRF; Ed25519 certificate signatures planned).
 * **Document Processing:** Local encrypted document vault; PDF digital text-layer extraction (`pypdf` / `pdfplumber`) with Tesseract OCR fallback for scanned images (planned for Tier 4).
 * **Containerization:** Docker & Docker Compose (single application container `fdr_sentinel_web` + PostgreSQL container `fdr_sentinel_db`).
@@ -241,6 +241,19 @@ DEMO_SHOW_CREDENTIALS=true
 ```
 *(When enabled alongside `APP_ENV != "production"`, this renders the interactive demo credentials drawer on `/login` and equips `is_demo_admin` users with the Demo Time Machine toolbar.)*
 
+##### Temporal Engine & Automation Settings (.env)
+| Setting | Default | Description |
+| :--- | :--- | :--- |
+| `SCHEDULER_ENABLED` | `true` | Enables in-process APScheduler background cycle runner |
+| `SCHEDULER_INTERVAL_MINUTES` | `60` | Background scan interval in minutes (>= 1) |
+| `EXPIRING_WINDOW_DAYS` | `90` | Horizon window (days) when ACTIVE instruments transition to EXPIRING |
+| `REMINDER_THRESHOLDS_DAYS` | `"90,60,30,7"` | Comma-delimited descending positive reminder day offsets |
+| `TIER2_MAX_DAYS` | `60` | Threshold below which reminders escalate to WARNING |
+| `URGENT_MAX_DAYS` | `30` | Threshold below which reminders escalate to URGENT |
+| `OVERDUE_ESCALATION_DAYS` | `7` | Days past maturity after which MATURED FDR alerts escalate to CRITICAL |
+| `PENDING_REVIEW_ALERT_DAYS` | `7` | Backlog threshold for SUBMITTED / UNDER_SCRUTINY review alerts |
+| `UNRESOLVED_FLAG_ALERT_DAYS` | `7` | Stagnation threshold for unresolved DISCREPANCY_FLAGGED alerts |
+
 #### Step C: Build and Launch the Application Stack
 ```powershell
 # Start PostgreSQL and FastAPI containers in detached mode with build
@@ -269,17 +282,30 @@ docker compose exec web python scripts/seed_users.py
 > [!NOTE]
 > The seed script automatically reads `SEED_PASSWORD` from the container's environment (loaded by Docker Compose from `.env`), ensuring passwords never need to be passed as command-line arguments.
 
+#### Step E: Running the Temporal Cycle On-Demand (CLI)
+You can trigger the temporal lifecycle evaluation cycle directly from the command line:
+```powershell
+# Display help and available options
+docker compose exec web python scripts/run_temporal_cycle.py --help
+
+# Perform a dry-run evaluation without committing transitions or alerts
+docker compose exec web python scripts/run_temporal_cycle.py --dry-run
+
+# Execute a live manual cycle run
+docker compose exec web python scripts/run_temporal_cycle.py --trigger MANUAL
+```
+
 ---
 
 ### 3. Demo Evaluation User Credentials
 
 | Username | Role | Demo Title & Context | Password | Implemented Capabilities & Audit Visibility |
 | :--- | :--- | :--- | :--- | :--- |
-| `demo.admin` | `AUDITOR` (`is_demo_admin=true`) | Demo Administrator (jury account) | *as configured in .env (SEED_PASSWORD)* | Clock control via Demo Time Machine toolbar, inspect full cryptographic audit log, verify chain integrity at `/audit/verify` |
-| `scrutiny.officer` | `SCRUTINY_OFFICER` | Scrutiny Officer (demo) | *as configured in .env (SEED_PASSWORD)* | Authenticated staff navigation, view audit status page; *(planned: scrutiny console, discrepancy review, side-by-side extraction viewer)* |
-| `approver.authority` | `APPROVER_AUTHORITY` | Competent Authority (demo) | *as configured in .env (SEED_PASSWORD)* | Authenticated staff navigation; *(planned: release authorization dashboard, statutory checklist sign-off)* |
-| `auditor` | `AUDITOR` | Vigilance Auditor (demo) | *as configured in .env (SEED_PASSWORD)* | Full audit trail inspection, cryptographic chain verification (`/audit/verify`) with linear-time genesis and link continuity checks |
-| `inst.admin` | `INSTITUTION_ADMIN` | Institution Administrator (demo, fictional institution: National Model Institute of Technology) | *as configured in .env (SEED_PASSWORD)* | College FDR portal, instrument submission with client & server validation, envelope-encrypted document upload & scoped download, read-only audit timeline |
+| `demo.admin` | `AUDITOR` (`is_demo_admin=true`) | Demo Administrator (jury account) | *as configured in .env (SEED_PASSWORD)* | Clock control via Demo Time Machine toolbar, trigger on-demand temporal cycle, inspect full cryptographic audit log, verify chain integrity at `/audit/verify` |
+| `scrutiny.officer` | `SCRUTINY_OFFICER` | Scrutiny Officer (demo) | *as configured in .env (SEED_PASSWORD)* | Scrutiny workstation (`/scrutiny`), discrepancy triage & resolution, mock and manual verification workflows, structured scrutiny notes |
+| `approver.authority` | `APPROVER_AUTHORITY` | Competent Authority (demo) | *as configured in .env (SEED_PASSWORD)* | Approver workstation (`/approver`), instrument rejection with mandatory rationale & prior-state restoration, alert review |
+| `auditor` | `AUDITOR` | Vigilance Auditor (demo) | *as configured in .env (SEED_PASSWORD)* | Full audit trail inspection, cryptographic chain verification (`/audit/verify`) with linear-time genesis and link continuity checks, scheduler run telemetry (`/scheduler`) |
+| `inst.admin` | `INSTITUTION_ADMIN` | Institution Administrator (demo, fictional institution: National Model Institute of Technology) | *as configured in .env (SEED_PASSWORD)* | College FDR portal, instrument submission with client & server validation, envelope-encrypted document upload & scoped download, read-only audit timeline, notification drawer (`/notifications`) |
 | `inst.admin2` | `INSTITUTION_ADMIN` | Institution Administrator (demo, fictional institution: Demo Institute of Technology) | *as configured in .env (SEED_PASSWORD)* | Multi-tenant tenancy isolation (scoped strictly to own institution; cross-institution requests return 404) |
 
 ---
@@ -289,7 +315,7 @@ The automated test suite executes strictly against the isolated test database (`
 ```powershell
 docker compose exec web pytest -q
 ```
-*Current test suite: **137 passed** (including static temporal integrity checks, constant-time dummy timing mitigation, CSRF double-submit tests, envelope encryption validation, 11-state FSM transitions, and institution tenancy scoping).*
+*Current test suite: **251 passed** (including static temporal integrity checks, constant-time dummy timing mitigation, CSRF double-submit tests, envelope encryption validation, 11-state FSM transitions, discrepancy rules, scrutiny workflows, temporal rules, advisory-locked lifecycle cycle runner, and institution tenancy scoping).*
 
 ---
 

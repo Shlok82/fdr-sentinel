@@ -602,6 +602,11 @@ def run_checks(
                 sent_at=now_ts,
                 acknowledged_at=None,
                 escalation_level_reached=1,
+                severity="CRITICAL",
+                status="OPEN",
+                business_date=clock_service.today(),
+                details={"reason": "Duplicate FDR number across institutions"},
+                created_at=now_ts,
             )
             session.add(alert)
             session.flush()

@@ -1,22 +1,27 @@
 <div class="bg-navy-900 border-b border-slate-700 text-white px-4 py-2 text-xs shadow-inner">
-    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center space-x-2">
-            <span class="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse" aria-hidden="true"></span>
             <span class="font-bold tracking-wide text-amber-400 uppercase text-[11px]">Demo Time Machine</span>
             <span class="text-slate-400">|</span>
             <span class="text-slate-300">Clock: <strong class="font-mono text-white">{{ current_time }}</strong></span>
             {% if is_simulated %}
             <span class="bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded text-[10px] font-mono border border-amber-500/40">Offset Active</span>
             {% endif %}
+            <span class="text-[11px] text-slate-400 italic hidden lg:inline" title="Temporal Engine Active">
+                (Advancing clock triggers lifecycle progression and maturity alerts)
+            </span>
         </div>
 
         <div class="flex items-center space-x-1.5" role="group" aria-label="Time Machine Controls">
-            <span class="text-slate-400 mr-1 text-[11px]">Advance Horizon:</span>
+            <span class="text-slate-400 mr-1 text-[11px]">Advance:</span>
             
-            <form hx-post="/api/v1/demo/clock" hx-target="#time-machine-container" class="inline">
+            <form hx-post="/api/v1/demo/clock" hx-target="#time-machine-container" class="inline"
+                  onsubmit="return confirm('Advance clock by 30 days? This will evaluate instrument maturities and generate reminder alerts.');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="action" value="+30d">
-                <button type="submit" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 hover:text-white px-2.5 py-1 rounded font-mono font-medium border border-slate-600 transition focus:outline-none focus:ring-1 focus:ring-amber-400">
+                <button type="submit" title="Advance clock by 30 days and trigger temporal alerts"
+                        class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 hover:text-white px-2.5 py-1 rounded font-mono font-medium border border-slate-600 transition focus:outline-none focus:ring-1 focus:ring-amber-400">
                     +30d
                 </button>
             </form>
@@ -24,7 +29,8 @@
             <form hx-post="/api/v1/demo/clock" hx-target="#time-machine-container" class="inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="action" value="+60d">
-                <button type="submit" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 hover:text-white px-2.5 py-1 rounded font-mono font-medium border border-slate-600 transition focus:outline-none focus:ring-1 focus:ring-amber-400">
+                <button type="submit" title="Advance clock by 60 days"
+                        class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 hover:text-white px-2.5 py-1 rounded font-mono font-medium border border-slate-600 transition focus:outline-none focus:ring-1 focus:ring-amber-400">
                     +60d
                 </button>
             </form>
@@ -32,15 +38,18 @@
             <form hx-post="/api/v1/demo/clock" hx-target="#time-machine-container" class="inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="action" value="+90d">
-                <button type="submit" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 hover:text-white px-2.5 py-1 rounded font-mono font-medium border border-slate-600 transition focus:outline-none focus:ring-1 focus:ring-amber-400">
+                <button type="submit" title="Advance clock by 90 days"
+                        class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 hover:text-white px-2.5 py-1 rounded font-mono font-medium border border-slate-600 transition focus:outline-none focus:ring-1 focus:ring-amber-400">
                     +90d
                 </button>
             </form>
 
-            <form hx-post="/api/v1/demo/clock" hx-target="#time-machine-container" class="inline">
+            <form hx-post="/api/v1/demo/clock" hx-target="#time-machine-container" class="inline"
+                  onsubmit="return confirm('Advance clock by 1 full year? Instruments maturing within 365 days will transition to MATURED and trigger overdue escalations.');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="action" value="+1y">
-                <button type="submit" class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 hover:text-white px-2.5 py-1 rounded font-mono font-medium border border-slate-600 transition focus:outline-none focus:ring-1 focus:ring-amber-400">
+                <button type="submit" title="Advance clock by 1 year (365 days) and trigger temporal alerts"
+                        class="bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 hover:text-white px-2.5 py-1 rounded font-mono font-medium border border-slate-600 transition focus:outline-none focus:ring-1 focus:ring-amber-400">
                     +1y
                 </button>
             </form>
@@ -48,10 +57,19 @@
             <form hx-post="/api/v1/demo/clock" hx-target="#time-machine-container" class="inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="action" value="reset">
-                <button type="submit" class="bg-rose-900/50 hover:bg-rose-800 active:bg-rose-700 text-rose-200 hover:text-white px-2.5 py-1 rounded font-medium border border-rose-700 transition focus:outline-none focus:ring-1 focus:ring-rose-400">
+                <button type="submit" title="Reset clock to authoritative current hardware time"
+                        class="bg-rose-900/50 hover:bg-rose-800 active:bg-rose-700 text-rose-200 hover:text-white px-2.5 py-1 rounded font-medium border border-rose-700 transition focus:outline-none focus:ring-1 focus:ring-rose-400">
                     Reset
                 </button>
             </form>
         </div>
     </div>
+    {% if cycle_summary %}
+    <div class="max-w-7xl mx-auto mt-1 pt-1 border-t border-slate-800 text-[11px] text-amber-300 font-mono flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+        </svg>
+        <span>{{ cycle_summary }}</span>
+    </div>
+    {% endif %}
 </div>

@@ -18,6 +18,7 @@ from app.models.discrepancy import DiscrepancyTicket
 from app.models.scrutiny import ScrutinyNote
 from app.models.verification import VerificationRecord
 from app.models.audit import AuditLog
+from app.models.alert import Alert
 from app.schemas.instrument import FDRSubmissionForm
 from app.services.submission_service import FDRSubmissionService
 from app.services.document_service import DocumentService, validate_file_content
@@ -62,6 +63,9 @@ def list_institution_instruments(
     instruments = query.order_by(Instrument.created_at.desc()).all()
     status_counts = compute_status_counts(db, institution_id=user.institution_id)
 
+    from app.routers.temporal import get_unread_notifications_count
+    unread_count = get_unread_notifications_count(db, user)
+
     context = {
         "request": request,
         "user": user,
@@ -69,6 +73,7 @@ def list_institution_instruments(
         "instruments": instruments,
         "status_counts": status_counts,
         "selected_status": status if status in ALL_STATES else None,
+        "unread_notifications_count": unread_count,
         "current_time": clock_service.display_time,
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
@@ -86,6 +91,8 @@ def new_instrument_form(
 ):
     """Renders the FDR Submission form for institution administrator."""
     institution = db.query(Institution).filter(Institution.id == user.institution_id).first()
+    from app.routers.temporal import get_unread_notifications_count
+    unread_count = get_unread_notifications_count(db, user)
 
     context = {
         "request": request,
@@ -93,6 +100,7 @@ def new_instrument_form(
         "institution": institution,
         "form_data": {},
         "errors": {},
+        "unread_notifications_count": unread_count,
         "current_time": clock_service.display_time,
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
@@ -256,6 +264,18 @@ def view_institution_instrument_detail(
         .order_by(DiscrepancyTicket.created_at.desc())
         .all()
     )
+    instrument_alerts = (
+        db.query(Alert)
+        .filter(Alert.instrument_id == instrument.id)
+        .order_by(Alert.created_at.desc())
+        .all()
+    )
+    days_to_maturity = None
+    if instrument.maturity_date:
+        days_to_maturity = (instrument.maturity_date - clock_service.today()).days
+
+    from app.routers.temporal import get_unread_notifications_count
+    unread_count = get_unread_notifications_count(db, user)
 
     context = {
         "request": request,
@@ -266,6 +286,9 @@ def view_institution_instrument_detail(
         "documents": documents,
         "timeline": timeline,
         "tickets": tickets,
+        "alerts": instrument_alerts,
+        "days_to_maturity": days_to_maturity,
+        "unread_notifications_count": unread_count,
         "current_time": clock_service.display_time,
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
@@ -465,6 +488,19 @@ def _render_staff_case_page(
 
     has_rejection_recommendation = any(n.action_recommended == "REJECT" for n in scrutiny_notes)
 
+    instrument_alerts = (
+        db.query(Alert)
+        .filter(Alert.instrument_id == instrument.id)
+        .order_by(Alert.created_at.desc())
+        .all()
+    )
+    days_to_maturity = None
+    if instrument.maturity_date:
+        days_to_maturity = (instrument.maturity_date - clock_service.today()).days
+
+    from app.routers.temporal import get_unread_notifications_count
+    unread_count = get_unread_notifications_count(db, user)
+
     context = {
         "request": request,
         "user": user,
@@ -474,6 +510,9 @@ def _render_staff_case_page(
         "documents": documents,
         "timeline": timeline,
         "tickets": tickets,
+        "alerts": instrument_alerts,
+        "days_to_maturity": days_to_maturity,
+        "unread_notifications_count": unread_count,
         "not_evaluated": not_evaluated,
         "scrutiny_notes": scrutiny_notes,
         "verification_records": verification_records,
