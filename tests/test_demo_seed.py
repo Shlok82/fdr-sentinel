@@ -115,16 +115,17 @@ def test_demo_seed_dataset_full_integrity(tmp_path, monkeypatch):
     session: Session = TestOwnerSession()
     try:
         # 1. Total Instruments and Exact Status Counts:
-        # 29 ACTIVE, 8 EXPIRING, 5 MATURED, 4 DISCREPANCY_FLAGGED, 4 RENEWED, 4 RELEASED, 3 SUBMITTED, 2 UNDER_SCRUTINY = 59
+        # 29 ACTIVE, 8 EXPIRING, 5 MATURED, 4 DISCREPANCY_FLAGGED, 4 RENEWED, 4 RELEASED, 2 RELEASE_REQUESTED, 3 SUBMITTED, 2 UNDER_SCRUTINY = 61
         rows = session.execute(text("SELECT status, count(*) FROM instruments GROUP BY status")).fetchall()
         status_map = dict(rows)
-        assert sum(status_map.values()) == 59
+        assert sum(status_map.values()) == 61
         assert status_map.get("ACTIVE") == 29
         assert status_map.get("EXPIRING") == 8
         assert status_map.get("MATURED") == 5
         assert status_map.get("DISCREPANCY_FLAGGED") == 4
         assert status_map.get("RENEWED") == 4
         assert status_map.get("RELEASED") == 4
+        assert status_map.get("RELEASE_REQUESTED") == 2
         assert status_map.get("SUBMITTED") == 3
         assert status_map.get("UNDER_SCRUTINY") == 2
 

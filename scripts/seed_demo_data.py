@@ -26,6 +26,7 @@ import uuid
 import random
 import argparse
 import time
+import io
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Dict, Any, List, Optional, Tuple
@@ -44,6 +45,7 @@ from app.models.document import Document
 from app.models.provenance import FieldProvenance
 from app.models.verification import VerificationRecord
 from app.models.discrepancy import DiscrepancyTicket
+from app.models.release import ReleaseRequest
 from app.models.user import User
 from app.schemas.instrument import FDRSubmissionForm
 from app.services.submission_service import FDRSubmissionService
@@ -55,6 +57,7 @@ from app.services.audit_service import AuditService, verify_chain
 from app.services.instrument_fsm import transition, Actor, SYSTEM_ACTOR, InstrumentState
 from app.services.temporal_cycle import run_temporal_cycle
 from app.services.trust_score import recompute_trust
+from app.services.release_service import request_release, record_recommendation, decide_release
 
 # Fixed deterministic seed
 SEED_RNG_VAL = 20261027
@@ -762,16 +765,10 @@ def run_seed(args):
             child_act = activate_through_scrutiny(child_fdr)
             renewal_children.append(child_act)
 
-            # 3. Transition parent to RENEWED
-            parent_renewed = transition(
-                session=session,
-                instrument_id=parent_act.id,
-                to_state="RENEWED",
-                actor=SYSTEM_ACTOR,
-                justification=f"Superseded by renewal child instrument {child_act.id}.",
-            )
-            session.commit()
-            renewed_parents.append(parent_renewed)
+            # Note: activate_instrument() automatically executed the renewal activation hook,
+            # transitioning parent_act to RENEWED cleanly via SYSTEM_ACTOR!
+            session.refresh(parent_act)
+            renewed_parents.append(parent_act)
 
         print(f"  Created {len(renewed_parents)} RENEWED parent instruments and {len(renewal_children)} ACTIVE child instruments.")
 
@@ -788,6 +785,7 @@ def run_seed(args):
         ]
 
         approver_actor = Actor.from_user(approver_authority)
+        scrutiny_actor = Actor.from_user(scrutiny_officer)
 
         for rel_idx, (orig_state, target_mat) in enumerate(release_scenarios):
             inst_owner = institutions_list[46 + rel_idx]
@@ -842,28 +840,50 @@ def run_seed(args):
                 )
                 session.commit()
 
-            # Institution requests release
-            transition(
+            # Dual-key release workflow execution:
+            # 1. Institution requests release
+            rel_req = request_release(
                 session=session,
                 instrument_id=act.id,
-                to_state="RELEASE_REQUESTED",
                 actor=inst_actor,
-                justification="Statutory approved programme duration completed without encumbrance.",
+                justification="Statutory approved programme duration completed without encumbrance. All degrees awarded.",
             )
             session.commit()
 
-            # Approver releases
-            rel = transition(
+            # 2. Scrutiny officer records recommendation with synthesized PDF evidence
+            evidence_pdf = generate_demo_fdr_pdf({"fdr_number": f"EVIDENCE-{act.fdr_number}", "bank_name": "State Bank of India"})
+            evidence_file = io.BytesIO(evidence_pdf)
+            evidence_file.filename = f"statutory_clearance_{act.fdr_number}.pdf"
+            checklist = {
+                "course_cycle_completed": True,
+                "no_student_grievances_pending": True,
+                "no_vigilance_inquiry_active": True,
+                "regional_inspection_cleared": True,
+            }
+            record_recommendation(
                 session=session,
-                instrument_id=act.id,
-                to_state="RELEASED",
-                actor=approver_actor,
-                justification="Release authorized following regulatory inspection and compliance sign-off.",
+                request_id=rel_req.id,
+                actor=scrutiny_actor,
+                checklist=checklist,
+                recommendation="RECOMMENDED",
+                justification="Regional officer verified completion of course cycle and issued statutory clearance certificate.",
+                evidence_upload=evidence_file,
             )
             session.commit()
-            released_instruments.append(rel)
 
-        print(f"  Created and released {len(released_instruments)} RELEASED instruments.")
+            # 3. Competent authority approves release
+            decide_release(
+                session=session,
+                request_id=rel_req.id,
+                actor=approver_actor,
+                decision="APPROVE",
+                justification="Release order authorized following scrutiny verification and statutory compliance clearance.",
+            )
+            session.commit()
+            session.refresh(act)
+            released_instruments.append(act)
+
+        print(f"  Created and released {len(released_instruments)} RELEASED instruments via dual-key workflow.")
 
         # ---------------------------------------------------------------------
         # Group 7: Queue Extras (5 instruments)
@@ -903,6 +923,82 @@ def run_seed(args):
                 queue_under_scrutiny.append(fdr)
 
         print(f"  Created {len(queue_submitted)} SUBMITTED and {len(queue_under_scrutiny)} UNDER_SCRUTINY queue extras.")
+
+        # ---------------------------------------------------------------------
+        # Group 8: Release Requested Extras (2 instruments)
+        # 1 ready for Approver (Key 1 turned: RECOMMENDED) in institution 5
+        # 1 ready for Scrutiny (Key 1 pending) in institution 6
+        # ---------------------------------------------------------------------
+        release_requested_extras: List[Instrument] = []
+
+        # (a) Approver action item: Key 1 turned
+        inst_owner_rel1 = institutions_list[5]
+        u_inst_rel1 = institution_users_map[inst_owner_rel1.id]
+        fdr_rel1 = submit_one(
+            inst_obj=inst_owner_rel1,
+            fdr_num=f"SEED-FDR-{fdr_counter}",
+            principal=Decimal("3500000.00"),
+            rate=Decimal("7.15"),
+            iss_date=today - timedelta(days=365),
+            mat_date=today + timedelta(days=90),
+            tenure=15,
+        )
+        fdr_counter += 1
+        act_rel1 = activate_through_scrutiny(fdr_rel1)
+        rel_req1 = request_release(
+            session=session,
+            instrument_id=act_rel1.id,
+            actor=Actor.from_user(u_inst_rel1),
+            justification="Course cycle completed; all academic batches graduated without liabilities.",
+        )
+        session.commit()
+
+        evidence_pdf_extra = generate_demo_fdr_pdf({"fdr_number": f"EVIDENCE-{act_rel1.fdr_number}", "bank_name": "State Bank of India"})
+        evidence_file_extra = io.BytesIO(evidence_pdf_extra)
+        evidence_file_extra.filename = f"clearance_{act_rel1.fdr_number}.pdf"
+        record_recommendation(
+            session=session,
+            request_id=rel_req1.id,
+            actor=scrutiny_actor,
+            checklist={
+                "course_cycle_completed": True,
+                "no_student_grievances_pending": True,
+                "no_vigilance_inquiry_active": True,
+                "regional_inspection_cleared": True,
+            },
+            recommendation="RECOMMENDED",
+            justification="Regional officer completed on-site vigilance inspection and cleared deposit release.",
+            evidence_upload=evidence_file_extra,
+        )
+        session.commit()
+        session.refresh(act_rel1)
+        release_requested_extras.append(act_rel1)
+
+        # (b) Scrutiny action item: Key 1 pending review
+        inst_owner_rel2 = institutions_list[6]
+        u_inst_rel2 = institution_users_map[inst_owner_rel2.id]
+        fdr_rel2 = submit_one(
+            inst_obj=inst_owner_rel2,
+            fdr_num=f"SEED-FDR-{fdr_counter}",
+            principal=Decimal("3500000.00"),
+            rate=Decimal("7.15"),
+            iss_date=today - timedelta(days=365),
+            mat_date=today + timedelta(days=120),
+            tenure=16,
+        )
+        fdr_counter += 1
+        act_rel2 = activate_through_scrutiny(fdr_rel2)
+        rel_req2 = request_release(
+            session=session,
+            instrument_id=act_rel2.id,
+            actor=Actor.from_user(u_inst_rel2),
+            justification="AICTE approved programme duration concluded; requesting deposit release.",
+        )
+        session.commit()
+        session.refresh(act_rel2)
+        release_requested_extras.append(act_rel2)
+
+        print(f"  Created {len(release_requested_extras)} RELEASE_REQUESTED extras (1 Key 1 turned for Approver, 1 Key 1 pending for Scrutiny).")
 
         # ---------------------------------------------------------------------
         # 4. Post-Activation Real Temporal Cycle Run
@@ -963,14 +1059,14 @@ def run_seed(args):
         print("=" * 70)
         print(f"Elapsed Time:             {elapsed:.2f} seconds")
         print(f"Total Institutions:       {len(institutions_list)} across {len(region_counts)} regions")
-        print(f"Total Instruments:        {len(all_instruments)} (50 primary + 4 renewal + 5 queue extras)")
+        print(f"Total Instruments:        {len(all_instruments)} (50 primary + 4 renewal + 5 queue extras + 2 release requested extras)")
         print(f"Audit Log Chain:          {chain_res.rows_checked} entries (VERIFIED - OK)")
         print(f"Alerts / Notifications:   {alerts_count} alerts / {notifs_count} notifications")
         print("-" * 70)
         print("Status Counts:")
         for st in [
             "ACTIVE", "EXPIRING", "MATURED", "DISCREPANCY_FLAGGED",
-            "RENEWED", "RELEASED", "SUBMITTED", "UNDER_SCRUTINY"
+            "RENEWED", "RELEASED", "RELEASE_REQUESTED", "SUBMITTED", "UNDER_SCRUTINY"
         ]:
             print(f"  {st:24}: {status_counts.get(st, 0)}")
         print("-" * 70)

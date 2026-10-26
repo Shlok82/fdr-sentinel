@@ -41,10 +41,10 @@ Technical education institutions seeking approval from the All India Council for
 | **Maturity Wall & Risk Dashboard** | Executive Chart.js visualization of deposits at risk, 12 monthly tranches, and regional exposure. | **Tier 2** | `Done` |
 | **Earned Trust Score Calculator** | Low base (20) + evidence additions - rule deductions (0–100) with privacy masking. | **Tier 2** | `Done` |
 | **Bilingual Official Notices** | English and Hindi notice templates for official communication. | **Tier 2** | `Planned` |
-| **Renewal Lineage Chain** | Parent-child rollover graph; parent renews only when child is active. | **Tier 3** | `Planned` |
-| **Dual-Authorized Release Workflow**| Human-in-the-loop scrutiny checklist + authority sign-off. | **Tier 3** | `Planned` |
+| **Renewal Lineage Chain** | Parent-child rollover graph; parent renews only when child is active. | **Tier 3** | `Done` |
+| **Dual-Authorized Release Workflow**| Human-in-the-loop scrutiny checklist + authority sign-off and SHA-256 sealed release order. | **Tier 3** | `Done` |
 | **Audit Verification & Tamper Test**| Linear-time chain verifier with live database tamper test. | **Tier 3** | `Partial` (verification page and automated tamper tests exist; scripted live tamper demo not done) |
-| **Seed Script & Deployment** | 50 institutions across 8 regions, 59 instruments, zero-drift snapshot tool (`demo_snapshot.ps1`). | **Tier 3** | `Done` |
+| **Seed Script & Deployment** | 50 institutions across 8 regions, 61 instruments, zero-drift snapshot tool (`demo_snapshot.ps1`). | **Tier 3** | `Done` |
 | **Backup Demo Video** | Full 5-minute judge walkthrough recorded as backup deliverable. | **Tier 3** | `Planned` |
 | **Text Extraction / OCR Diff Viewer**| Native PDF text layer with Tesseract OCR fallback and visual diff. | **Tier 4** | `Planned` |
 | **QR-Verifiable Deposit Certificate**| Ed25519-signed public certificate omitting private bank secrets. | **Tier 4** | `Planned` |
@@ -157,11 +157,11 @@ FDR-SENTINEL/
 ├── alembic/                        # Database migration scripts
 │   ├── env.py                      # Migration runtime environment (uses fdr_owner)
 │   ├── script.py.mako              # Migration template
-│   └── versions/                   # Versioned migration revisions (0001 through 0007)
+│   └── versions/                   # Versioned migration revisions (0001 through 0009)
 ├── app/                            # Unified FastAPI Application
 │   ├── core/                       # Security, config, dependencies, database session, Jinja filters
-│   ├── models/                     # SQLAlchemy ORM models (User, Institution, Instrument, Document, Audit, Clock, Alerts, etc.)
-│   ├── routers/                    # Web routers (auth, demo, health, pages, rest, audit, dashboard, notifications, scheduler)
+│   ├── models/                     # SQLAlchemy ORM models (User, Institution, Instrument, Document, Audit, Clock, Alerts, Release, etc.)
+│   ├── routers/                    # Web routers (auth, demo, health, pages, rest, audit, dashboard, notifications, scheduler, instruments)
 │   ├── schemas/                    # Pydantic v2 validation contracts
 │   ├── services/                   # Application domain services
 │   │   ├── audit_service.py        # Cryptographic SHA-256 hash-chain append & verify
@@ -170,10 +170,13 @@ FDR-SENTINEL/
 │   │   ├── demo_scenarios.py       # Submission presets for evaluation testing
 │   │   ├── document_service.py     # AES-256-GCM envelope encryption vault
 │   │   ├── instrument_fsm.py       # 11-state lifecycle FSM & centralized status counts
+│   │   ├── lineage.py              # Parent-child renewal lineage graph traverser
+│   │   ├── release_service.py      # Dual-key security deposit release workflow & SHA-256 sealing
+│   │   ├── renewal_service.py      # Renewal intake validation & parent link binding
 │   │   ├── submission_service.py   # Multi-table atomic submission ingestion
 │   │   ├── discrepancy_engine.py   # Pure rules DISC-01..06, DISC-08 & ticket orchestration
 │   │   ├── trust_score.py          # Earned Trust Score calculator (base + additions - deductions)
-│   │   ├── scrutiny_service.py     # Review queue & manual verification workflows
+│   │   ├── scrutiny_service.py     # Review queue, manual verification & renewal activation hooks
 │   │   ├── temporal_rules.py       # Pure temporal rules & catch-up reminder logic
 │   │   ├── lifecycle_automation.py # Advisory-locked lifecycle scanner & alert dispatcher
 │   │   ├── scheduler.py            # APScheduler single-process background worker
@@ -189,6 +192,7 @@ FDR-SENTINEL/
 │       ├── components/             # Reusable UI components & modals
 │       ├── errors/                 # Styled 400, 403, 404, 500 error templates
 │       ├── institution/            # FDR submission form & institution dashboard
+│       ├── instruments/            # Detail views, lineage cards & printable Release Order
 │       ├── scrutiny/               # Staff detail & audit timeline views
 │       ├── roles/                  # Role-specific workstation views (scrutiny, approver, auditor)
 │       ├── notifications/          # In-app notifications inbox & simulated previews
@@ -204,13 +208,13 @@ FDR-SENTINEL/
 │   ├── init-db.sql                 # PostgreSQL user and role initialization
 │   ├── prepare_branding.py         # Image cropping and branding generator
 │   ├── seed_users.py               # Idempotent demo user and institution seeder (baseline accounts)
-│   ├── seed_demo_data.py           # Deterministic 50-institution / 59-instrument demo seeder
+│   ├── seed_demo_data.py           # Deterministic 50-institution / 61-instrument demo seeder
 │   ├── demo_snapshot.ps1           # Zero-drift binary snapshot & restore utility
 │   ├── recompute_trust.py          # CLI batch trust score calculator
 │   ├── run_temporal_cycle.py       # CLI on-demand temporal lifecycle runner
 │   └── verify_stage1.py            # Foundation validation script
 ├── storage/                        # Encrypted document vault storage (local volume)
-└── tests/                          # Automated test suite (268 passed across 17 modules)
+└── tests/                          # Automated test suite (298 passed across 19 modules)
 ```
 
 ---
@@ -295,7 +299,7 @@ docker compose exec web python scripts/seed_users.py
 > The seed script automatically reads `SEED_PASSWORD` from the container's environment (loaded by Docker Compose from `.env`), ensuring passwords never need to be passed as command-line arguments.
 
 ##### Full 50-Institution Synthetic Demo Dataset
-To populate the complete evaluation dataset (50 institutions across 8 AICTE regions, 59 instruments across 8 lifecycle states, tickets, notes, and 450+ verified audit entries):
+To populate the complete evaluation dataset (50 institutions across 8 AICTE regions, 61 instruments across 9 lifecycle states, tickets, notes, and 490 verified audit entries):
 ```powershell
 docker compose exec web python scripts/seed_demo_data.py --reset-demo-data --yes-wipe
 ```
@@ -333,10 +337,10 @@ docker compose exec web python scripts/run_temporal_cycle.py --trigger MANUAL
 | Username | Role | Demo Title & Context | Password | Implemented Capabilities & Audit Visibility |
 | :--- | :--- | :--- | :--- | :--- |
 | `demo.admin` | `AUDITOR` (`is_demo_admin=true`) | Demo Administrator (jury account) | *as configured in .env (SEED_PASSWORD)* | Clock control via Demo Time Machine toolbar, trigger on-demand temporal cycle, inspect full cryptographic audit log, verify chain integrity at `/audit/verify` |
-| `scrutiny.officer` | `SCRUTINY_OFFICER` | Scrutiny Officer (demo) | *as configured in .env (SEED_PASSWORD)* | Scrutiny workstation (`/scrutiny`), discrepancy triage & resolution, mock and manual verification workflows, structured scrutiny notes |
-| `approver.authority` | `APPROVER_AUTHORITY` | Competent Authority (demo) | *as configured in .env (SEED_PASSWORD)* | Approver workstation (`/approver`), instrument rejection with mandatory rationale & prior-state restoration, alert review |
+| `scrutiny.officer` | `SCRUTINY_OFFICER` | Scrutiny Officer (demo) | *as configured in .env (SEED_PASSWORD)* | Scrutiny workstation (`/scrutiny`), discrepancy triage & resolution, mock and manual verification workflows, structured scrutiny notes, release recommendation & verification evidence upload (Key 1) |
+| `approver.authority` | `APPROVER_AUTHORITY` | Competent Authority (demo) | *as configured in .env (SEED_PASSWORD)* | Approver workstation (`/approver`), dual-key release authorization / rejection (Key 2), instrument rejection with mandatory rationale & prior-state restoration, alert review |
 | `auditor` | `AUDITOR` | Vigilance Auditor (demo) | *as configured in .env (SEED_PASSWORD)* | Full audit trail inspection, cryptographic chain verification (`/audit/verify`) with linear-time genesis and link continuity checks, scheduler run telemetry (`/scheduler`) |
-| `inst.admin` | `INSTITUTION_ADMIN` | Institution Administrator (demo, fictional institution: National Model Institute of Technology) | *as configured in .env (SEED_PASSWORD)* | College FDR portal, instrument submission with client & server validation, envelope-encrypted document upload & scoped download, read-only audit timeline, notification drawer (`/notifications`) |
+| `inst.admin` | `INSTITUTION_ADMIN` | Institution Administrator (demo, fictional institution: National Model Institute of Technology) | *as configured in .env (SEED_PASSWORD)* | College FDR portal, instrument submission & renewal intake, security deposit release requests, printable Release Order with SHA-256 integrity seal, envelope-encrypted document upload & scoped download, read-only audit timeline, notification drawer (`/notifications`) |
 | `inst.admin2` | `INSTITUTION_ADMIN` | Institution Administrator (demo, fictional institution: Demo Institute of Technology) | *as configured in .env (SEED_PASSWORD)* | Multi-tenant tenancy isolation (scoped strictly to own institution; cross-institution requests return 404) |
 
 ---
@@ -346,7 +350,7 @@ The automated test suite executes strictly against the isolated test database (`
 ```powershell
 docker compose exec web pytest -q
 ```
-*Current test suite: **268 passed** (including static temporal integrity checks, constant-time dummy timing mitigation, CSRF double-submit tests, envelope encryption validation, 11-state FSM transitions, discrepancy rules, scrutiny workflows, temporal rules, advisory-locked lifecycle cycle runner, earned trust score calculator, 50-institution demo seed integrity, executive dashboard & maturity wall, and institution tenancy scoping).*
+*Current test suite: **298 passed** (including static temporal integrity checks, constant-time dummy timing mitigation, CSRF double-submit tests, envelope encryption validation, 11-state FSM transitions, discrepancy rules, scrutiny workflows, temporal rules, advisory-locked lifecycle cycle runner, earned trust score calculator, 50-institution demo seed integrity, executive dashboard & maturity wall, parent-child renewal lineage chains with activation hooks, dual-key release workflow with canonical SHA-256 release order sealing, and institution tenancy scoping).*
 
 ---
 
@@ -356,7 +360,15 @@ docker compose exec web pytest -q
 1. **Executive Command:** Open Dashboard as Scrutiny Officer to review active FDR status counters, regional distribution, and the interactive **Maturity Wall** displaying expiring deposits for the upcoming quarter based on the loaded seed dataset.
 2. **Discrepancy Identification & Earned Trust:** Switch to Institution portal. Upload an FDR with inverted dates and a duplicate receipt number. The system preserves the record as `DISCREPANCY_FLAGGED` without crashing. Reveal the **Explainable Trust Score**: Base (20) + evidence additions (active verification, clean OCR, maturity headroom) - discrepancy deductions (mismatch, duplicate, lien, expiry). Note that the incumbent college's existing deposit remains untouched in `ACTIVE` status.
 3. **Demo Time Machine Clock & Catch-Up Alerts:** Advance the injected application clock by 60 days via the Demo Time Machine toolbar (available to `is_demo_admin` when `DEMO_MODE=true`). Watch the single-process scheduler fire live: status shifts from `ACTIVE` to `EXPIRING`, catch-up evaluation dispatches bilingual English/Hindi notices, and an urgent Level 2 escalation appears on the officer backlog.
-4. **Renewal Lineage & Dual-Authorized Release:** Demonstrate parent-child renewal lineage, where parent FDR becomes `RENEWED` only when child reaches `ACTIVE`. Switch to Competent Authority account. Open a release request filed from a `MATURED` instrument. Inspect the officer's statutory checklist and evidence. Click **Authorize Release** to produce an Ed25519-signed QR certificate.
+4. **Renewal Lineage & Dual-Authorized Release (8-Step Evaluator Procedure):**
+   - **Step 4.1 (Renewal Intake):** Log in as `inst.admin` and navigate to a mature/expiring instrument or directly open `/institution/instruments/{parent_id}/renew`. Submit the renewal deposit referencing the parent FDR. Notice the child begins in `SUBMITTED` while the parent remains in its current state.
+   - **Step 4.2 (Lineage Inspection):** On the detail view, observe the parent-child lineage card linking the two instruments.
+   - **Step 4.3 (Child Verification & Activation):** Log in as `scrutiny.officer` (`/scrutiny`), perform mock CBS verification on the child deposit, and click **Activate Instrument**. Observe the atomic hook: the child transitions to `ACTIVE` and the parent simultaneously transitions to `RENEWED`.
+   - **Step 4.4 (Release Request Submission):** Log in as `inst.admin` and open an eligible deposit (`ACTIVE`, `EXPIRING`, or `MATURED`). Click **Request Release**, select a statutory reason (e.g., Course Closure / Excess Deposit), and submit. Status transitions to `RELEASE_REQUESTED`, recording `prior_state`.
+   - **Step 4.5 (Key 1 — Scrutiny Recommendation):** Switch to `scrutiny.officer` (`/scrutiny`). In the Action Items queue, open the release case. Check the statutory compliance items (No pending AICTE dues, No court orders, Original deposit verified), upload external bank verification evidence, and submit **Recommend Release**.
+   - **Step 4.6 (Confidential Evidence Scoping):** Switch back to `inst.admin`. Verify that the Scrutiny Officer's internal verification evidence document is strictly hidden from the institution portal (returns 404 if accessed directly).
+   - **Step 4.7 (Key 2 — Competent Authority Authorization):** Log in as `approver.authority` (`/approver`). Open the release case from Action Items. Review the scrutiny recommendation, enter mandatory rationale ($\ge 10$ chars), and click **Authorize Release**. Status transitions cleanly to `RELEASED`.
+   - **Step 4.8 (Cryptographic Release Order):** Click **View Release Order** (`/institution/instruments/{id}/release-order` or `/instruments/{id}/release-order`) to inspect the printable A4 official Release Order bearing the 64-character SHA-256 canonical integrity seal.
 5. **Tamper-Detection Live Test:** Open Auditor view. Click **Verify Chain Integrity**; show green confirmation. Run a test script that directly modifies a database audit row; re-run verification; watch the indicator turn RED, pinpointing the exact compromised block ID.
 
 ---
