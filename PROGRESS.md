@@ -6,10 +6,10 @@
 **Project:** FDR Sentinel (SIH Problem Statement 26265)  
 **Execution Context:** Solo Developer (4 Build Days + 1 Submission Day)  
 **Submission Deadline:** 28 October 2026  
-**Current Phase:** Day 3 — Stage 8 Complete (Temporal Engine, Lifecycle Automation & Proactive Alerts)  
-**Last Updated:** 2026-10-27 (Stage 8 Temporal Engine & Alerts Complete)  
-**Overall Readiness:** 80% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel, Nullable Migration 0002, AES-256-GCM Envelope Encryption with AAD Document ID Binding, Sharded Storage Vault, Atomic Multi-Table Submission Service, Field Provenance, Scoped Views & Downloads, Submission Form Demo Tools & Scenarios, fpdf2 Specimen PDF Generator, Shared Null-Safe Filters, Global Exception Catch-All 500 Handler, 11-State Finite State Machine, Database CHECK Constraint ck_instruments_status_fsm, Prior-State Restoration Column, Actor Principal Model, Read-Only Audit Timeline UI, DiscrepancyEngine & discrepancy_tickets Migration 0004, Pure Rules DISC-01 to DISC-06 and DISC-08, FSM Blocking Flag Orchestration, Scoped UI Cards, Centralized compute_status_counts, Review Queues on Scrutiny & Approver Workstations, Pluggable Verification Providers with Mock CBS and Manual Letter Vault Encryption, Statutory Pre-Verification Guards, Officer Discrepancy Flagging, Competent Authority Terminal Rejection, Migration 0005 Revoking Verification/Scrutiny Deletes, Migration 0006 Temporal Engine & Notifications, Pure Temporal Rules with Catch-Up Reminders, PostgreSQL Session-Level Advisory Lock, APScheduler Integration, In-App Audience Notifications, Simulated Previews, System Alerts Log, Scheduler Status Panel, 251 Tests Passing)  
-> **Schedule status:** Tier 1 complete (Stages 1-7); Tier 2 Temporal Engine and Proactive Alerts complete (Stage 8); Dashboard Maturity Wall & Earned Trust Score Calculator next.
+**Current Phase:** Day 3 — Stage 9 Complete (Earned Trust Score, 50-Institution Demo Seed, Executive Dashboard & Maturity Wall)  
+**Last Updated:** 2026-10-27 (Stage 9 Earned Trust Score, 50-Institution Demo Seed & Executive Dashboard Complete)  
+**Overall Readiness:** 90% (Foundation, Database Roles, ClockService, Audit Hash Chain, Auth & RBAC, CSRF, Time Machine Toolbar, Offline UI Shell, Demo Credentials Panel, Nullable Migration 0002, AES-256-GCM Envelope Encryption with AAD Document ID Binding, Sharded Storage Vault, Atomic Multi-Table Submission Service, Field Provenance, Scoped Views & Downloads, Submission Form Demo Tools & Scenarios, fpdf2 Specimen PDF Generator, Shared Null-Safe Filters, Global Exception Catch-All 500 Handler, 11-State Finite State Machine, Database CHECK Constraint ck_instruments_status_fsm, Prior-State Restoration Column, Actor Principal Model, Read-Only Audit Timeline UI, DiscrepancyEngine & discrepancy_tickets Migration 0004, Pure Rules DISC-01 to DISC-06 and DISC-08, FSM Blocking Flag Orchestration, Scoped UI Cards, Centralized compute_status_counts, Review Queues on Scrutiny & Approver Workstations, Pluggable Verification Providers with Mock CBS and Manual Letter Vault Encryption, Statutory Pre-Verification Guards, Officer Discrepancy Flagging, Competent Authority Terminal Rejection, Migration 0005 Revoking Verification/Scrutiny Deletes, Migration 0006 Temporal Engine & Notifications, Pure Temporal Rules with Catch-Up Reminders, PostgreSQL Session-Level Advisory Lock, APScheduler Integration, In-App Audience Notifications, Simulated Previews, System Alerts Log, Scheduler Status Panel, Migration 0007 Trust Breakdown & Earned Trust Score Calculator with DISC-05 Privacy Masking, Deterministic 50-Institution Demo Seed across 8 Regions & 59 Instruments, Zero-Drift PowerShell Snapshot Tool demo_snapshot.ps1, Vendored Chart.js 4.4.7 UMD, Executive Dashboard & 12-Month Maturity Wall with Regional Risk Exposure, 268 Tests Passing)  
+> **Schedule status:** Tier 1 complete (Stages 1-7); Tier 2 complete (Stages 8-9: Temporal Engine, Lifecycle Automation, Alerts, Earned Trust Score, Executive Dashboard & Maturity Wall); Tier 3 multi-institution seed complete; renewal lineage, dual-key release, and live tamper demo next.
 
 ---
 
@@ -27,6 +27,7 @@
 | **Stage 6** | DiscrepancyEngine & Trust Score Inputs | Done | DISC-01 to DISC-06, DISC-08, discrepancy_tickets table, FSM orchestration, audit trail |
 | **Stage 7** | Scrutiny Console, Verification Providers, Approver Rejection | Done | Review queue, mock bank & manual letter providers, provenance tagging, authority rejection, 202 tests passing |
 | **Stage 8** | Temporal Engine, Lifecycle Automation & Proactive Alerts | Done | Pure decision function, catch-up reminders (90/60/30/15/7/3/1), PostgreSQL advisory locking, APScheduler, notifications inbox & previews, system alerts log, scheduler status panel, 251 tests passing |
+| **Stage 9** | Earned Trust Score, 50-Institution Demo Seed, Executive Dashboard & Maturity Wall | Done | Migration 0007 (trust_breakdown JSONB), dynamic earned trust calculator, deterministic 50-institution / 59-instrument demo seed, zero-drift demo_snapshot.ps1, Chart.js 4.4.7 Maturity Wall & regional exposure, 268 tests passing |
 
 ---
 
@@ -56,8 +57,8 @@
 - [x] Implement proactive alert dispatch: 90/60/30/15/7/3/1-day horizons with catch-up logic and `UNIQUE (instrument_id, alert_type)` constraint.
 - [x] Build **Demo "Time Machine" Clock** toolbar: HTMX control modal restricted to `is_demo_admin` when `DEMO_MODE=true`.
 - [x] Build Stage 3.1 Demo Credentials Panel & UI fixes (triple-gated on `/login`, duplicate Sign In removal, plain text audit subtitle, responsive user badge with title attribute, environment-scoped cookie Secure flag).
-- [ ] Build Central Executive Dashboard: status counter cards and Chart.js **Maturity Wall** (monthly tranches & regional exposure).
-- [ ] Implement **Earned Trust Score Calculator**: Low Base (20) + Evidence Additions - Rule Deductions (0–100) with UI breakdown card.
+- [x] Build Central Executive Dashboard: status counter cards and Chart.js **Maturity Wall** (monthly tranches & regional exposure).
+- [x] Implement **Earned Trust Score Calculator**: Low Base (20) + Evidence Additions - Rule Deductions (0–100) with UI breakdown card.
 - [ ] Implement bilingual (English/Hindi) official notice templates and preview modals for maturing instruments.
 
 ### Day 3: Monday, 26 Oct 2026 (Tier 3: Lifecycle Completion, Integrity & Deployment)
@@ -66,7 +67,7 @@
 - [x] Build Tamper-Detection audit verification view (`/audit/verify`) with green/red status badge.
 - [ ] Scripted live row-tampering demonstration against database audit rows.
 - [x] Synthetic seed data: role users + two sample institutions with isolated tenancies (`scripts/seed_users.py`).
-- [ ] Synthetic seed data: 50 institutions across 8 regions with full lifecycle states (Stage 3 deliverable).
+- [x] Synthetic seed data: 50 institutions across 8 regions with full lifecycle states (Stage 9 deliverable).
 - [ ] Verify production Docker Compose deployment (local/staging environment).
 - [ ] **Record backup demo video:** Full 5-minute judge walkthrough recorded and stored safely as fallback deliverable.
 
@@ -154,6 +155,10 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 | **DEC-049** | 2026-10-27 | Superseded Catch-Up Markers | Skipped reminder thresholds are stored as `status='SUPERSEDED'` rows in `alerts` without generating `notifications` records or writing audit entries. | Ensures ledger completeness without notification spam or audit bloat. When an instrument skips multiple thresholds during a clock jump, only the smallest/most urgent arrived threshold emits a real alert and notification; larger arrived thresholds are recorded as superseded markers so future catch-up evaluations know they have arrived. |
 | **DEC-050** | 2026-10-27 | Session-Level PostgreSQL Advisory Lock Independence | Advisory lock (`pg_advisory_lock(99887766)`) acquired on a dedicated raw engine connection held across per-instrument transaction commits and unlocked in `finally`. | Ensures transaction independence. Using session-level advisory locks ensures per-instrument commits/rollbacks do not inadvertently release transaction-level locks, preventing concurrent scheduled workers or time machine triggers from double-processing. |
 | **DEC-051** | 2026-10-27 | Audit Compactness Rule for Scheduled Cycles | `SCHEDULER_RUN_COMPLETED` audit entries are created when transitions or alerts occur, when errors occur, or when triggered manually/via time machine (`TIME_MACHINE`, `MANUAL`). Routine no-op scheduled ticks (`SCHEDULED`) suppress audit logging. | Prevents audit chain bloat from routine background interval ticks while ensuring all real state changes and manual operator interventions remain 100% audited. |
+| **DEC-052** | 2026-10-27 | Earned Trust Score Algorithm & Privacy Masking | Pure function `compute_trust` (Base 20 + additions - deductions clamped 0–100), Migration 0007 (`trust_breakdown` JSONB + `trust_computed_at`), wired into submission, discrepancy engine, verification, and scrutiny services. Dynamic breakdown card on detail templates with DISC-05 privacy masking for institution users (hiding conflicting institution/FDR identifiers). | Replaces static trust score with explainable, evidence-backed trust scoring while strictly protecting inter-institutional privacy and preventing competitor discovery. |
+| **DEC-053** | 2026-10-27 | Deterministic 50-Institution Demo Seed & Pre-Activation Backdating | Deterministic seed script (`scripts/seed_demo_data.py`) creating 50 institutions across 8 AICTE regions and 59 instruments across 8 lifecycle states. Generates valid initial future maturities to pass ingestion validation cleanly, followed by permitted owner-role raw SQL pre-activation backdating prior to verification to model realistic matured/expiring deposits without violating FSM edge transitions or corrupting the SHA-256 audit chain (459 entries). | Provides rich, realistic evaluator dataset across all 8 AICTE regions with zero audit chain breaks and clean FSM transition histories. |
+| **DEC-054** | 2026-10-27 | Zero-Drift Binary Snapshot & Restore Architecture (`demo_snapshot.ps1`) | Container-internal `/tmp` dump execution with `docker compose cp` for PowerShell snapshot management (`save`, `restore`, `list`). Avoids PowerShell stdout binary streaming corruption of PostgreSQL custom-format archives, ensuring byte-exact restoration, zero audit chain drift, and instant demo reset. | Eliminates PowerShell stdout binary encoding corruption, guaranteeing 100% byte-identical database resets for live jury demonstrations. |
+| **DEC-055** | 2026-10-27 | Executive Dashboard & Maturity Wall Aggregations with Vendored Chart.js | Single `/dashboard` endpoint serving role-scoped staff view (Scrutiny, Approver, Auditor) with KPI cards, 12 monthly maturity tranches plus Overdue and Later, stacked Active vs Expiring bar chart, and horizontal regional exposure chart using vendored Chart.js 4.4.7 UMD (`app/static/vendor/chart.umd.min.js`). Accessible tabular data mirrors for screen readers and zero audit log writes on view requests. | Provides high-impact executive oversight and maturity risk forecasting with 100% offline vendored assets and WCAG accessibility compliance. |
 
 ---
 
@@ -169,7 +174,7 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 
 - [x] All 4 user roles seeded and functional (`institution`, `scrutiny`, `approver`, `auditor`).
 - [x] `is_demo_admin` account created and gated by `DEMO_MODE=true`.
-- [ ] Executive Dashboard renders live Maturity Wall (Chart.js) and Deposit at Risk counters from seed dataset.
+- [x] Executive Dashboard renders live Maturity Wall (Chart.js) and Deposit at Risk counters from seed dataset.
 - [x] Discrepancy Engine saves defective test upload as `DISCREPANCY_FLAGGED` without touching incumbent deposit.
 - [ ] Side-by-side text extraction diff renders clearly on Scrutiny Officer console.
 - [x] Demo Time Machine button (+30 Days, +1 Year) successfully shifts `ClockService` and fires single-process scheduler with catch-up alerts.
@@ -195,7 +200,7 @@ If execution encounters unforeseen blockers, non-essential extensions are deferr
 * **Issue 9 (Master Key Rotation Deferred):** Single versioned master key is used for envelope encryption; multi-version master key rotation is deferred to production hardening.
 * **Issue 10 (Resolved - Stage 6):** DiscrepancyEngine built and verified across pure rules `DISC-01` through `DISC-06`, `DISC-08`, with database-backed tickets and atomic FSM orchestration. `DISC-07` (text extraction diff) is deferred to Tier 4 when the full OCR and digital text extraction pipeline arrives, returning `NOT_EVALUATED`.
 * **Issue 11 (Resolved - Stage 5):** Release-rejection workflow restores the instrument to its exact prior pre-release state (`ACTIVE`, `EXPIRING`, or `MATURED`) via dedicated `prior_state` column and clears it upon exit.
-* **Issue 12 (Baseline Trust Score):** Trust score currently initializes to a constant baseline of `20`; the explainable earned Trust Score calculator (base + evidence additions - discrepancy deductions) is planned for Tier 2.
+* **Issue 12 (Resolved - Stage 9):** Earned Trust Score Calculator implemented (`app/services/trust_score.py`, Migration 0007). Computes low base (20) + verified evidence additions (active verification, clean document metadata, maturity headroom) - rule deductions (discrepancy severity, expired maturity, invalid joint holding) clamped 0–100, stored in `trust_breakdown` JSONB with DISC-05 privacy masking.
 * **Issue 13 (Nullable Business Fields):** All instrument business columns are nullable in the database (Migration `0002_nullable_instrument_fields.py`); all current and new code must safely handle `None` values without crashing.
 * **Issue 14 (Demo Tools Gating):** Prototype demo scenario tools and sample PDF generators must remain strictly gated by `DEMO_MODE=true` and non-production environments (`APP_ENV != "production"`).
 * **Issue 15 (Rectification & Resubmission Flow Deferred):** Instrument editing and resubmission flows for flagged discrepancies are deferred beyond Stage 6; instruments remain flagged for manual scrutiny resolution.

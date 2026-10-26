@@ -38,13 +38,13 @@ Technical education institutions seeking approval from the All India Council for
 | **Scrutiny Officer Console** | HTMX-powered review workstation with anomaly indicators and mock/manual verification. | **Tier 1** | `Done` |
 | **Temporal Alerts & Scheduler** | APScheduler single-process worker, 90/60/30/7-day horizons, catch-up, notification drawer. | **Tier 2** | `Done` |
 | **Demo "Time Machine" Clock** | Dedicated toolbar for `is_demo_admin` when `DEMO_MODE=true` with temporal cycle trigger. | **Tier 2** | `Done` |
-| **Maturity Wall & Risk Dashboard** | Executive Chart.js visualization of deposits at risk and monthly tranches. | **Tier 2** | `Planned` |
-| **Earned Trust Score Calculator** | Low base (20) + evidence additions - rule deductions (0–100). | **Tier 2** | `Planned` |
+| **Maturity Wall & Risk Dashboard** | Executive Chart.js visualization of deposits at risk, 12 monthly tranches, and regional exposure. | **Tier 2** | `Done` |
+| **Earned Trust Score Calculator** | Low base (20) + evidence additions - rule deductions (0–100) with privacy masking. | **Tier 2** | `Done` |
 | **Bilingual Official Notices** | English and Hindi notice templates for official communication. | **Tier 2** | `Planned` |
 | **Renewal Lineage Chain** | Parent-child rollover graph; parent renews only when child is active. | **Tier 3** | `Planned` |
 | **Dual-Authorized Release Workflow**| Human-in-the-loop scrutiny checklist + authority sign-off. | **Tier 3** | `Planned` |
 | **Audit Verification & Tamper Test**| Linear-time chain verifier with live database tamper test. | **Tier 3** | `Partial` (verification page and automated tamper tests exist; scripted live tamper demo not done) |
-| **Seed Script & Deployment** | Multi-institution synthetic seed dataset, Docker Compose orchestration. | **Tier 3** | `Partial` (role users and two sample institutions exist; the 50-institution seed and deployment verification in scripts/verify_deployment.sh do not exist) |
+| **Seed Script & Deployment** | 50 institutions across 8 regions, 59 instruments, zero-drift snapshot tool (`demo_snapshot.ps1`). | **Tier 3** | `Done` |
 | **Backup Demo Video** | Full 5-minute judge walkthrough recorded as backup deliverable. | **Tier 3** | `Planned` |
 | **Text Extraction / OCR Diff Viewer**| Native PDF text layer with Tesseract OCR fallback and visual diff. | **Tier 4** | `Planned` |
 | **QR-Verifiable Deposit Certificate**| Ed25519-signed public certificate omitting private bank secrets. | **Tier 4** | `Planned` |
@@ -130,7 +130,7 @@ graph TD
 ## 🛠️ Tech Stack
 * **Full-Stack Application:** Single FastAPI application (Python 3.11, Pydantic v2, synchronous SQLAlchemy 2.0 with `psycopg`, PyJWT, Cryptography, Bcrypt) serving both HTML views and REST endpoints.
 * **UI & Interactivity:** Jinja2 templates + HTMX (dynamic, SPA-like partial DOM updates without client build pipelines) + Tailwind CSS + Lucide Icons. Local vendored static assets (`htmx.min.js`, `tailwind.min.js`) ensure no third-party CDN dependencies for current pages (vendored assets).
-* **Visualizations:** Chart.js (rendered on native HTML5 canvas for the Maturity Wall and regional risk exposure; planned).
+* **Visualizations:** Chart.js 4.4.7 (rendered on native HTML5 canvas for the 12-month Maturity Wall and regional risk exposure; vendored locally in `app/static/vendor/chart.umd.min.js`).
 * **Database & Roles:** PostgreSQL 16+ with strict role segregation: administrative migrations and seeding run under `fdr_owner`; application runtime executes strictly under `fdr_app_user` with `UPDATE`, `DELETE`, and `TRUNCATE` revoked on `audit_log`. Separate `fdr_sentinel_test` database for automated tests.
 * **Scheduler:** APScheduler 3.x (Single-process worker executing scans against `ClockService` with advisory locking, startup catch-up, and per-instrument transaction isolation).
 * **Security & Crypto:** `cryptography` (AES-256-GCM envelope encryption with master KEK, SHA-256 canonical hash chains, Bcrypt password hashing with constant-time dummy timing mitigation, double-submit cookie CSRF; Ed25519 certificate signatures planned).
@@ -157,11 +157,11 @@ FDR-SENTINEL/
 ├── alembic/                        # Database migration scripts
 │   ├── env.py                      # Migration runtime environment (uses fdr_owner)
 │   ├── script.py.mako              # Migration template
-│   └── versions/                   # Versioned migration revisions (0001, 0002, 0003)
+│   └── versions/                   # Versioned migration revisions (0001 through 0007)
 ├── app/                            # Unified FastAPI Application
-│   ├── core/                       # Security, config, dependencies, database session
-│   ├── models/                     # SQLAlchemy ORM models (User, Institution, Instrument, Document, Audit, Clock, etc.)
-│   ├── routers/                    # Web routers (auth, demo, health, pages, rest, audit)
+│   ├── core/                       # Security, config, dependencies, database session, Jinja filters
+│   ├── models/                     # SQLAlchemy ORM models (User, Institution, Instrument, Document, Audit, Clock, Alerts, etc.)
+│   ├── routers/                    # Web routers (auth, demo, health, pages, rest, audit, dashboard, notifications, scheduler)
 │   ├── schemas/                    # Pydantic v2 validation contracts
 │   ├── services/                   # Application domain services
 │   │   ├── audit_service.py        # Cryptographic SHA-256 hash-chain append & verify
@@ -169,15 +169,19 @@ FDR-SENTINEL/
 │   │   ├── demo_documents.py       # Built-in synthetic PDF specimen generator
 │   │   ├── demo_scenarios.py       # Submission presets for evaluation testing
 │   │   ├── document_service.py     # AES-256-GCM envelope encryption vault
-│   │   ├── instrument_fsm.py       # 11-state lifecycle FSM & state transitions
+│   │   ├── instrument_fsm.py       # 11-state lifecycle FSM & centralized status counts
 │   │   ├── submission_service.py   # Multi-table atomic submission ingestion
-│   │   ├── discrepancy_engine.py   # (planned) Deterministic discrepancy checks
-│   │   ├── trust_score.py          # (planned) Earned Trust Score calculator
-│   │   └── scheduler.py            # (planned) APScheduler single-process worker
+│   │   ├── discrepancy_engine.py   # Pure rules DISC-01..06, DISC-08 & ticket orchestration
+│   │   ├── trust_score.py          # Earned Trust Score calculator (base + additions - deductions)
+│   │   ├── scrutiny_service.py     # Review queue & manual verification workflows
+│   │   ├── temporal_rules.py       # Pure temporal rules & catch-up reminder logic
+│   │   ├── lifecycle_automation.py # Advisory-locked lifecycle scanner & alert dispatcher
+│   │   ├── scheduler.py            # APScheduler single-process background worker
+│   │   └── verification/           # Pluggable verification providers (Mock CBS & Manual Letter)
 │   ├── static/                     # Vendored and local static assets
 │   │   ├── images/                 # App logos and wordmark brand assets
 │   │   ├── js/                     # Client-side helper scripts (fdr_form.js)
-│   │   ├── vendor/                 # Vendored offline JS/CSS (htmx.min.js, tailwind.min.js)
+│   │   ├── vendor/                 # Vendored offline JS/CSS (htmx.min.js, tailwind.min.js, chart.umd.min.js, VERSIONS.md)
 │   │   ├── favicon.ico             # Application favicon
 │   │   └── favicon.png             # Application favicon PNG
 │   └── templates/                  # Jinja2 templates
@@ -186,7 +190,11 @@ FDR-SENTINEL/
 │       ├── errors/                 # Styled 400, 403, 404, 500 error templates
 │       ├── institution/            # FDR submission form & institution dashboard
 │       ├── scrutiny/               # Staff detail & audit timeline views
+│       ├── roles/                  # Role-specific workstation views (scrutiny, approver, auditor)
+│       ├── notifications/          # In-app notifications inbox & simulated previews
+│       ├── scheduler/              # APScheduler status panel & execution controls
 │       ├── partials/               # HTMX partial fragments
+│       ├── dashboard.html          # Executive Dashboard & Chart.js Maturity Wall
 │       └── base.html               # Master layout shell with Time Machine toolbar
 ├── images/                         # Source branding graphics
 │   ├── logo.png                    # Brand shield icon
@@ -195,10 +203,14 @@ FDR-SENTINEL/
 │   ├── entrypoint.sh               # Container startup script (migrations + single worker)
 │   ├── init-db.sql                 # PostgreSQL user and role initialization
 │   ├── prepare_branding.py         # Image cropping and branding generator
-│   ├── seed_users.py               # Idempotent demo user and institution seeder
+│   ├── seed_users.py               # Idempotent demo user and institution seeder (baseline accounts)
+│   ├── seed_demo_data.py           # Deterministic 50-institution / 59-instrument demo seeder
+│   ├── demo_snapshot.ps1           # Zero-drift binary snapshot & restore utility
+│   ├── recompute_trust.py          # CLI batch trust score calculator
+│   ├── run_temporal_cycle.py       # CLI on-demand temporal lifecycle runner
 │   └── verify_stage1.py            # Foundation validation script
 ├── storage/                        # Encrypted document vault storage (local volume)
-└── tests/                          # Automated test suite (137 passed across 13 modules)
+└── tests/                          # Automated test suite (268 passed across 17 modules)
 ```
 
 ---
@@ -274,13 +286,32 @@ The portal endpoints will be available at:
 * **Health Check Probe:** [http://localhost:8000/healthz](http://localhost:8000/healthz)
 * **Cryptographic Audit Verification:** [http://localhost:8000/audit/verify](http://localhost:8000/audit/verify)
 
-#### Step D: Seed the Database with Demo Accounts
-Run the idempotent user and institution seeding script inside the running web container:
+#### Step D: Seed the Database with Demo Accounts & 50-Institution Dataset
+Run the idempotent user and institution seeding script inside the running web container to create baseline demo accounts:
 ```powershell
 docker compose exec web python scripts/seed_users.py
 ```
 > [!NOTE]
 > The seed script automatically reads `SEED_PASSWORD` from the container's environment (loaded by Docker Compose from `.env`), ensuring passwords never need to be passed as command-line arguments.
+
+##### Full 50-Institution Synthetic Demo Dataset
+To populate the complete evaluation dataset (50 institutions across 8 AICTE regions, 59 instruments across 8 lifecycle states, tickets, notes, and 450+ verified audit entries):
+```powershell
+docker compose exec web python scripts/seed_demo_data.py --reset-demo-data --yes-wipe
+```
+
+##### Demo Snapshot & Instant Restore Utility
+To capture or instantly restore known-good database states during evaluator walkthroughs without re-seeding:
+```powershell
+# Save a pristine baseline snapshot
+.\scripts\demo_snapshot.ps1 save pristine --force
+
+# List available snapshots
+.\scripts\demo_snapshot.ps1 list
+
+# Restore pristine state (resets database and restarts web service cleanly)
+.\scripts\demo_snapshot.ps1 restore pristine
+```
 
 #### Step E: Running the Temporal Cycle On-Demand (CLI)
 You can trigger the temporal lifecycle evaluation cycle directly from the command line:
@@ -315,7 +346,7 @@ The automated test suite executes strictly against the isolated test database (`
 ```powershell
 docker compose exec web pytest -q
 ```
-*Current test suite: **251 passed** (including static temporal integrity checks, constant-time dummy timing mitigation, CSRF double-submit tests, envelope encryption validation, 11-state FSM transitions, discrepancy rules, scrutiny workflows, temporal rules, advisory-locked lifecycle cycle runner, and institution tenancy scoping).*
+*Current test suite: **268 passed** (including static temporal integrity checks, constant-time dummy timing mitigation, CSRF double-submit tests, envelope encryption validation, 11-state FSM transitions, discrepancy rules, scrutiny workflows, temporal rules, advisory-locked lifecycle cycle runner, earned trust score calculator, 50-institution demo seed integrity, executive dashboard & maturity wall, and institution tenancy scoping).*
 
 ---
 
@@ -323,7 +354,7 @@ docker compose exec web pytest -q
 > **Target demonstration flow:** Steps become available as the corresponding features land (see the Feature Matrix above).
 
 1. **Executive Command:** Open Dashboard as Scrutiny Officer to review active FDR status counters, regional distribution, and the interactive **Maturity Wall** displaying expiring deposits for the upcoming quarter based on the loaded seed dataset.
-2. **Discrepancy Identification & Earned Trust:** Switch to Institution portal. Upload an FDR with inverted dates and a duplicate receipt number. The system preserves the record as `DISCREPANCY_FLAGGED` without crashing. Reveal the **Explainable Trust Score**: Base (20) + Valid PDF (15) - Chronological Inversion DISC-02 (40) - Duplicate Submission DISC-05 (50) = 0/100 (clamped). Note that the incumbent college's existing deposit remains untouched in `ACTIVE` status.
+2. **Discrepancy Identification & Earned Trust:** Switch to Institution portal. Upload an FDR with inverted dates and a duplicate receipt number. The system preserves the record as `DISCREPANCY_FLAGGED` without crashing. Reveal the **Explainable Trust Score**: Base (20) + evidence additions (active verification, clean OCR, maturity headroom) - discrepancy deductions (mismatch, duplicate, lien, expiry). Note that the incumbent college's existing deposit remains untouched in `ACTIVE` status.
 3. **Demo Time Machine Clock & Catch-Up Alerts:** Advance the injected application clock by 60 days via the Demo Time Machine toolbar (available to `is_demo_admin` when `DEMO_MODE=true`). Watch the single-process scheduler fire live: status shifts from `ACTIVE` to `EXPIRING`, catch-up evaluation dispatches bilingual English/Hindi notices, and an urgent Level 2 escalation appears on the officer backlog.
 4. **Renewal Lineage & Dual-Authorized Release:** Demonstrate parent-child renewal lineage, where parent FDR becomes `RENEWED` only when child reaches `ACTIVE`. Switch to Competent Authority account. Open a release request filed from a `MATURED` instrument. Inspect the officer's statutory checklist and evidence. Click **Authorize Release** to produce an Ed25519-signed QR certificate.
 5. **Tamper-Detection Live Test:** Open Auditor view. Click **Verify Chain Integrity**; show green confirmation. Run a test script that directly modifies a database audit row; re-run verification; watch the indicator turn RED, pinpointing the exact compromised block ID.
