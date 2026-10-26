@@ -25,10 +25,10 @@ def common_context(request: Request, user: Optional[User]) -> dict:
     return {
         "request": request,
         "user": user,
-        "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
+        "current_time": clock_service.display_time,
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
-        "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
+        "simulated_date_str": clock_service.display_simulated_date,
         "csrf_token": csrf_token,
     }
 
@@ -75,6 +75,9 @@ def dashboard_redirect(user: User = Depends(get_current_user)):
 @router.get("/institution", response_class=HTMLResponse)
 def institution_workspace(
     request: Request,
+    status: Optional[str] = None,
+    sort: Optional[str] = "created_at",
+    order: Optional[str] = "desc",
     user: User = Depends(require_roles("INSTITUTION_ADMIN")),
     db: Session = Depends(get_db)
 ):
@@ -83,18 +86,7 @@ def institution_workspace(
     ctx["role_title"] = "Institution Portal — FDR Custody & Submissions"
     ctx["role_description"] = "Submit new Fixed Deposit Receipts, track verification status, and manage deposit custody."
 
-    # Query institution instruments.
-    # Null-Safety & Aggregate Rules:
-    # 1. Orders by created_at.desc(); any query ordering by nullable fields (e.g. maturity_date) must use nullslast().
-    # 2. Status counts are computed via compute_status_counts using the 11 exact FSM states.
-    instruments = (
-        db.query(Instrument)
-        .filter(Instrument.institution_id == user.institution_id)
-        .order_by(Instrument.created_at.desc())
-        .all()
-    )
-    ctx["instruments"] = instruments
-
+    # Compute status counts for caller's institution scope
     status_counts = compute_status_counts(db, institution_id=user.institution_id)
     ctx["status_counts"] = status_counts
     ctx["total_count"] = status_counts["TOTAL"]
@@ -102,6 +94,30 @@ def institution_workspace(
     ctx["active_count"] = status_counts[InstrumentState.ACTIVE.value]
     ctx["flagged_count"] = status_counts[InstrumentState.DISCREPANCY_FLAGGED.value]
     ctx["other_count"] = status_counts["OTHER"]
+
+    query = (
+        db.query(Instrument)
+        .filter(Instrument.institution_id == user.institution_id)
+    )
+    if status and status in ALL_STATES:
+        query = query.filter(Instrument.status == status)
+        selected_tab = status
+    else:
+        selected_tab = "ALL"
+
+    if sort == "maturity_date":
+        order_col = Instrument.maturity_date.asc().nullslast() if order == "asc" else Instrument.maturity_date.desc().nullslast()
+    elif sort == "principal_amount":
+        order_col = Instrument.principal_amount.asc().nullslast() if order == "asc" else Instrument.principal_amount.desc().nullslast()
+    else:
+        order_col = Instrument.created_at.asc() if order == "asc" else Instrument.created_at.desc()
+
+    instruments = query.order_by(order_col).limit(100).all()
+    ctx["instruments"] = instruments
+    ctx["selected_tab"] = selected_tab
+    ctx["selected_status"] = selected_tab if selected_tab in ALL_STATES else None
+    ctx["selected_sort"] = sort
+    ctx["selected_order"] = order
 
     return templates.TemplateResponse("roles/institution.html", ctx)
 
@@ -128,7 +144,9 @@ def scrutiny_workspace(
     ctx["flagged_count"] = status_counts[InstrumentState.DISCREPANCY_FLAGGED.value]
     ctx["verified_count"] = status_counts[InstrumentState.VERIFIED.value]
     ctx["active_count"] = status_counts[InstrumentState.ACTIVE.value]
-    ctx["other_count"] = status_counts["OTHER"]
+    ctx["release_requested_count"] = status_counts[InstrumentState.RELEASE_REQUESTED.value]
+    ctx["released_count"] = status_counts[InstrumentState.RELEASED.value]
+    ctx["other_count"] = status_counts["SCRUTINY_OTHER"]
 
     # Build queue query
     query = (
@@ -137,6 +155,9 @@ def scrutiny_workspace(
     )
     if status and status in ALL_STATES:
         query = query.filter(Instrument.status == status)
+        selected_tab = status
+    else:
+        selected_tab = "ALL"
 
     if sort == "maturity_date":
         order_col = Instrument.maturity_date.asc().nullslast() if order == "asc" else Instrument.maturity_date.desc().nullslast()
@@ -145,7 +166,7 @@ def scrutiny_workspace(
     else:
         order_col = Instrument.created_at.asc() if order == "asc" else Instrument.created_at.desc()
 
-    queue_rows = query.order_by(order_col).limit(50).all()
+    queue_rows = query.order_by(order_col).limit(100).all()
 
     blocking_ticket_counts = dict(
         db.query(DiscrepancyTicket.instrument_id, func.count(DiscrepancyTicket.id))
@@ -163,7 +184,8 @@ def scrutiny_workspace(
         })
 
     ctx["items"] = items
-    ctx["selected_status"] = status if status in ALL_STATES else None
+    ctx["selected_tab"] = selected_tab
+    ctx["selected_status"] = selected_tab if selected_tab in ALL_STATES else None
     ctx["selected_sort"] = sort
     ctx["selected_order"] = order
 
@@ -187,21 +209,28 @@ def approver_workspace(
     status_counts = compute_status_counts(db, institution_id=None)
     ctx["status_counts"] = status_counts
     ctx["total_count"] = status_counts["TOTAL"]
-    ctx["release_requested_count"] = status_counts[InstrumentState.RELEASE_REQUESTED.value]
+    ctx["under_scrutiny_count"] = status_counts[InstrumentState.UNDER_SCRUTINY.value]
+    ctx["flagged_count"] = status_counts[InstrumentState.DISCREPANCY_FLAGGED.value]
     ctx["verified_count"] = status_counts[InstrumentState.VERIFIED.value]
     ctx["active_count"] = status_counts[InstrumentState.ACTIVE.value]
+    ctx["release_requested_count"] = status_counts[InstrumentState.RELEASE_REQUESTED.value]
     ctx["released_count"] = status_counts[InstrumentState.RELEASED.value]
-    ctx["flagged_count"] = status_counts[InstrumentState.DISCREPANCY_FLAGGED.value]
-    ctx["other_count"] = status_counts["OTHER"]
+    ctx["other_count"] = status_counts["APPROVER_OTHER"]
+    ctx["action_items_count"] = status_counts["APPROVER_ACTION_ITEMS"]
 
     # Queue query: defaults to items needing authority attention
     query = (
         db.query(Instrument, Institution.name.label("institution_name"))
         .join(Institution, Instrument.institution_id == Institution.id)
     )
-    if status and status in ALL_STATES:
+    if status == "ALL":
+        selected_tab = "ALL"
+    elif status and status in ALL_STATES:
+        selected_tab = status
         query = query.filter(Instrument.status == status)
     else:
+        # Default or fallback for unknown ?status=
+        selected_tab = "ACTION_ITEMS"
         query = query.filter(Instrument.status.in_([
             InstrumentState.UNDER_SCRUTINY.value,
             InstrumentState.DISCREPANCY_FLAGGED.value,
@@ -216,7 +245,7 @@ def approver_workspace(
     else:
         order_col = Instrument.created_at.asc() if order == "asc" else Instrument.created_at.desc()
 
-    queue_rows = query.order_by(order_col).limit(50).all()
+    queue_rows = query.order_by(order_col).limit(100).all()
 
     blocking_ticket_counts = dict(
         db.query(DiscrepancyTicket.instrument_id, func.count(DiscrepancyTicket.id))
@@ -241,7 +270,8 @@ def approver_workspace(
         })
 
     ctx["items"] = items
-    ctx["selected_status"] = status if status in ALL_STATES else None
+    ctx["selected_tab"] = selected_tab
+    ctx["selected_status"] = selected_tab if selected_tab in ALL_STATES else None
     ctx["selected_sort"] = sort
     ctx["selected_order"] = order
 
@@ -251,6 +281,9 @@ def approver_workspace(
 @router.get("/auditor", response_class=HTMLResponse)
 def auditor_workspace(
     request: Request,
+    status: Optional[str] = None,
+    sort: Optional[str] = "created_at",
+    order: Optional[str] = "desc",
     user: User = Depends(require_roles("AUDITOR")),
     db: Session = Depends(get_db)
 ):
@@ -266,7 +299,42 @@ def auditor_workspace(
     ctx["flagged_count"] = status_counts[InstrumentState.DISCREPANCY_FLAGGED.value]
     ctx["released_count"] = status_counts[InstrumentState.RELEASED.value]
     ctx["submitted_count"] = status_counts[InstrumentState.SUBMITTED.value]
-    ctx["other_count"] = status_counts["OTHER"]
+    ctx["under_scrutiny_count"] = status_counts[InstrumentState.UNDER_SCRUTINY.value]
+    ctx["verified_count"] = status_counts[InstrumentState.VERIFIED.value]
+    ctx["other_count"] = status_counts["AUDITOR_OTHER"]
+
+    # Queue query for auditor
+    query = (
+        db.query(Instrument, Institution.name.label("institution_name"))
+        .join(Institution, Instrument.institution_id == Institution.id)
+    )
+    if status and status in ALL_STATES:
+        query = query.filter(Instrument.status == status)
+        selected_tab = status
+    else:
+        selected_tab = "ALL"
+
+    if sort == "maturity_date":
+        order_col = Instrument.maturity_date.asc().nullslast() if order == "asc" else Instrument.maturity_date.desc().nullslast()
+    elif sort == "principal_amount":
+        order_col = Instrument.principal_amount.asc().nullslast() if order == "asc" else Instrument.principal_amount.desc().nullslast()
+    else:
+        order_col = Instrument.created_at.asc() if order == "asc" else Instrument.created_at.desc()
+
+    queue_rows = query.order_by(order_col).limit(100).all()
+
+    items = []
+    for inst, inst_name in queue_rows:
+        items.append({
+            "instrument": inst,
+            "institution_name": inst_name,
+        })
+
+    ctx["items"] = items
+    ctx["selected_tab"] = selected_tab
+    ctx["selected_status"] = selected_tab if selected_tab in ALL_STATES else None
+    ctx["selected_sort"] = sort
+    ctx["selected_order"] = order
 
     return templates.TemplateResponse("roles/auditor.html", ctx)
 
@@ -298,6 +366,6 @@ def audit_verify_page(
     ctx = common_context(request, user)
     ctx["verify_result"] = result
     ctx["is_full_auditor"] = (user.role == "AUDITOR" and not user.is_demo_admin)
-    ctx["checked_at"] = clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST")
+    ctx["checked_at"] = clock_service.display_time
 
     return templates.TemplateResponse("audit/verify.html", ctx)

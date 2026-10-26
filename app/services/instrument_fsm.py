@@ -507,4 +507,39 @@ def compute_status_counts(
     flagged = counts[InstrumentState.DISCREPANCY_FLAGGED.value]
     counts["OTHER"] = total - (submitted + active + flagged)
 
+    # Approver specific metrics:
+    # 1. Action Items: sum of states needing authority attention
+    counts["APPROVER_ACTION_ITEMS"] = (
+        counts[InstrumentState.UNDER_SCRUTINY.value]
+        + counts[InstrumentState.DISCREPANCY_FLAGGED.value]
+        + counts[InstrumentState.VERIFIED.value]
+        + counts[InstrumentState.RELEASE_REQUESTED.value]
+    )
+    # 2. Other: remaining states not displayed as primary cards on approver
+    counts["APPROVER_OTHER"] = (
+        counts[InstrumentState.SUBMITTED.value]
+        + counts[InstrumentState.EXPIRING.value]
+        + counts[InstrumentState.MATURED.value]
+        + counts[InstrumentState.RENEWED.value]
+        + counts[InstrumentState.REJECTED.value]
+    )
+
+    # Scrutiny specific other:
+    counts["SCRUTINY_OTHER"] = (
+        counts[InstrumentState.EXPIRING.value]
+        + counts[InstrumentState.MATURED.value]
+        + counts[InstrumentState.RENEWED.value]
+        + counts[InstrumentState.RELEASED.value]
+        + counts[InstrumentState.REJECTED.value]
+    )
+
+    # Auditor specific other:
+    counts["AUDITOR_OTHER"] = (
+        counts[InstrumentState.EXPIRING.value]
+        + counts[InstrumentState.MATURED.value]
+        + counts[InstrumentState.RENEWED.value]
+        + counts[InstrumentState.RELEASE_REQUESTED.value]
+        + counts[InstrumentState.REJECTED.value]
+    )
+
     return counts

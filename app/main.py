@@ -87,10 +87,10 @@ async def custom_http_exception_handler(request: Request, exc: StarletteHTTPExce
             "request": request,
             "user": None,
             "detail": safe_detail,
-            "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
+            "current_time": clock_service.display_time,
             "is_simulated": clock_service.is_simulated,
             "demo_mode": settings.DEMO_MODE,
-            "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
+            "simulated_date_str": clock_service.display_simulated_date,
             "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
         }
         return templates.TemplateResponse(template_name, ctx, status_code=exc.status_code)
@@ -137,10 +137,10 @@ async def custom_validation_exception_handler(request: Request, exc: RequestVali
         "request": request,
         "user": None,
         "detail": friendly_text,
-        "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
+        "current_time": clock_service.display_time,
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
-        "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
+        "simulated_date_str": clock_service.display_simulated_date,
         "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
     }
     return templates.TemplateResponse("errors/422.html", ctx, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -181,10 +181,10 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
         "request": request,
         "user": None,
         "detail": "Internal Server Error",
-        "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
+        "current_time": clock_service.display_time,
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
-        "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
+        "simulated_date_str": clock_service.display_simulated_date,
         "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
     }
     return templates.TemplateResponse("errors/500.html", ctx, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -14,24 +14,43 @@
         <h1 class="mt-3 text-2xl font-bold text-slate-900 tracking-tight">{{ role_title }}</h1>
         <p class="mt-2 text-sm text-slate-600 max-w-3xl leading-relaxed">{{ role_description }}</p>
 
-        <!-- Metric counter cards -->
-        <div class="mt-6 pt-6 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div class="p-4 bg-slate-50 rounded-lg border border-slate-200/60">
-                <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Total FDRs</p>
-                <p class="mt-2 text-2xl font-bold text-slate-900" id="counter-total">{{ total_count }}</p>
+        <!-- Metric counter cards: 8 cards wrapping onto 2 rows (cards sum to Total) -->
+        <div class="mt-6 pt-6 border-t border-slate-100">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="p-4 bg-slate-50 rounded-lg border border-slate-200/60">
+                    <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Total FDRs</p>
+                    <p class="mt-2 text-2xl font-bold text-slate-900" id="counter-total">{{ total_count }}</p>
+                </div>
+                <div class="p-4 bg-emerald-50/60 rounded-lg border border-emerald-100">
+                    <p class="text-xs font-medium uppercase tracking-wider text-emerald-700">Active</p>
+                    <p class="mt-2 text-2xl font-bold text-emerald-900" id="counter-active">{{ active_count }}</p>
+                </div>
+                <div class="p-4 bg-rose-50/60 rounded-lg border border-rose-100">
+                    <p class="text-xs font-medium uppercase tracking-wider text-rose-700">Flagged</p>
+                    <p class="mt-2 text-2xl font-bold text-rose-900" id="counter-flagged">{{ flagged_count }}</p>
+                </div>
+                <div class="p-4 bg-slate-100/70 rounded-lg border border-slate-200">
+                    <p class="text-xs font-medium uppercase tracking-wider text-slate-700">Released</p>
+                    <p class="mt-2 text-2xl font-bold text-slate-900" id="counter-released">{{ released_count }}</p>
+                </div>
+                <div class="p-4 bg-blue-50/60 rounded-lg border border-blue-100">
+                    <p class="text-xs font-medium uppercase tracking-wider text-blue-700">Submitted</p>
+                    <p class="mt-2 text-2xl font-bold text-blue-900" id="counter-submitted">{{ submitted_count }}</p>
+                </div>
+                <div class="p-4 bg-sky-50/60 rounded-lg border border-sky-100">
+                    <p class="text-xs font-medium uppercase tracking-wider text-sky-700">Under Scrutiny</p>
+                    <p class="mt-2 text-2xl font-bold text-sky-900" id="counter-under-scrutiny">{{ under_scrutiny_count }}</p>
+                </div>
+                <div class="p-4 bg-teal-50/60 rounded-lg border border-teal-100">
+                    <p class="text-xs font-medium uppercase tracking-wider text-teal-700">Verified</p>
+                    <p class="mt-2 text-2xl font-bold text-teal-900" id="counter-verified">{{ verified_count }}</p>
+                </div>
+                <div class="p-4 bg-purple-50/60 rounded-lg border border-purple-100">
+                    <p class="text-xs font-medium uppercase tracking-wider text-purple-700">Other</p>
+                    <p class="mt-2 text-2xl font-bold text-purple-900" id="counter-other">{{ other_count }}</p>
+                </div>
             </div>
-            <div class="p-4 bg-emerald-50/60 rounded-lg border border-emerald-100">
-                <p class="text-xs font-medium uppercase tracking-wider text-emerald-700">Active</p>
-                <p class="mt-2 text-2xl font-bold text-emerald-900" id="counter-active">{{ active_count }}</p>
-            </div>
-            <div class="p-4 bg-amber-50/60 rounded-lg border border-amber-100">
-                <p class="text-xs font-medium uppercase tracking-wider text-amber-700">Flagged</p>
-                <p class="mt-2 text-2xl font-bold text-amber-900" id="counter-flagged">{{ flagged_count }}</p>
-            </div>
-            <div class="p-4 bg-slate-100/70 rounded-lg border border-slate-200">
-                <p class="text-xs font-medium uppercase tracking-wider text-slate-700">Released</p>
-                <p class="mt-2 text-2xl font-bold text-slate-900" id="counter-released">{{ released_count }}</p>
-            </div>
+            <p class="mt-3 text-xs text-slate-500 italic">Cards sum to Total.</p>
         </div>
 
         <div class="mt-6 border-t border-slate-100 pt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -45,22 +64,175 @@
         </div>
     </div>
 
-    <!-- Audit Event Stream / Empty state -->
+    <!-- Regulatory Deposit Queue -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
-            <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Audit & Vigilance Events</h2>
-            <span class="text-xs text-slate-500">Tamper-Evident Ledger</span>
+        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex flex-col gap-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Regulatory Deposit Oversight</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Inspect deposit instruments across all institutions and verification stages</p>
+                </div>
+                <div>
+                    <span class="text-xs text-slate-500">
+                        Showing {{ items|length }} of {% if selected_tab == 'ALL' %}{{ total_count }}{% else %}{{ status_counts[selected_tab] }}{% endif %} record(s)
+                    </span>
+                </div>
+            </div>
+            <!-- Filter Tabs with Count Badges -->
+            <div class="flex flex-wrap items-center gap-1.5 text-xs pt-1 border-t border-slate-200/60">
+                <a href="/auditor"
+                   class="px-2.5 py-1 rounded-md font-medium transition inline-flex items-center {% if selected_tab == 'ALL' %}bg-indigo-700 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    <span>All</span>
+                    <span class="ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold {% if selected_tab == 'ALL' %}bg-indigo-800 text-indigo-100{% else %}bg-slate-200 text-slate-700{% endif %}">
+                        {{ total_count }}
+                    </span>
+                </a>
+                <a href="/auditor?status=ACTIVE"
+                   class="px-2.5 py-1 rounded-md font-medium transition inline-flex items-center {% if selected_tab == 'ACTIVE' %}bg-indigo-700 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    <span>Active</span>
+                    <span class="ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold {% if selected_tab == 'ACTIVE' %}bg-indigo-800 text-indigo-100{% else %}bg-slate-200 text-slate-700{% endif %}">
+                        {{ active_count }}
+                    </span>
+                </a>
+                <a href="/auditor?status=EXPIRING"
+                   class="px-2.5 py-1 rounded-md font-medium transition inline-flex items-center {% if selected_tab == 'EXPIRING' %}bg-indigo-700 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    <span>Expiring</span>
+                    <span class="ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold {% if selected_tab == 'EXPIRING' %}bg-indigo-800 text-indigo-100{% else %}bg-slate-200 text-slate-700{% endif %}">
+                        {{ status_counts['EXPIRING'] }}
+                    </span>
+                </a>
+                <a href="/auditor?status=MATURED"
+                   class="px-2.5 py-1 rounded-md font-medium transition inline-flex items-center {% if selected_tab == 'MATURED' %}bg-indigo-700 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    <span>Matured</span>
+                    <span class="ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold {% if selected_tab == 'MATURED' %}bg-indigo-800 text-indigo-100{% else %}bg-slate-200 text-slate-700{% endif %}">
+                        {{ status_counts['MATURED'] }}
+                    </span>
+                </a>
+                <a href="/auditor?status=DISCREPANCY_FLAGGED"
+                   class="px-2.5 py-1 rounded-md font-medium transition inline-flex items-center {% if selected_tab == 'DISCREPANCY_FLAGGED' %}bg-indigo-700 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    <span>Flagged</span>
+                    <span class="ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold {% if selected_tab == 'DISCREPANCY_FLAGGED' %}bg-indigo-800 text-indigo-100{% else %}bg-slate-200 text-slate-700{% endif %}">
+                        {{ flagged_count }}
+                    </span>
+                </a>
+                <a href="/auditor?status=SUBMITTED"
+                   class="px-2.5 py-1 rounded-md font-medium transition inline-flex items-center {% if selected_tab == 'SUBMITTED' %}bg-indigo-700 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    <span>Submitted</span>
+                    <span class="ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold {% if selected_tab == 'SUBMITTED' %}bg-indigo-800 text-indigo-100{% else %}bg-slate-200 text-slate-700{% endif %}">
+                        {{ submitted_count }}
+                    </span>
+                </a>
+                <a href="/auditor?status=UNDER_SCRUTINY"
+                   class="px-2.5 py-1 rounded-md font-medium transition inline-flex items-center {% if selected_tab == 'UNDER_SCRUTINY' %}bg-indigo-700 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    <span>Under Scrutiny</span>
+                    <span class="ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold {% if selected_tab == 'UNDER_SCRUTINY' %}bg-indigo-800 text-indigo-100{% else %}bg-slate-200 text-slate-700{% endif %}">
+                        {{ under_scrutiny_count }}
+                    </span>
+                </a>
+                <a href="/auditor?status=VERIFIED"
+                   class="px-2.5 py-1 rounded-md font-medium transition inline-flex items-center {% if selected_tab == 'VERIFIED' %}bg-indigo-700 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    <span>Verified</span>
+                    <span class="ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold {% if selected_tab == 'VERIFIED' %}bg-indigo-800 text-indigo-100{% else %}bg-slate-200 text-slate-700{% endif %}">
+                        {{ verified_count }}
+                    </span>
+                </a>
+                <a href="/auditor?status=RELEASE_REQUESTED"
+                   class="px-2.5 py-1 rounded-md font-medium transition inline-flex items-center {% if selected_tab == 'RELEASE_REQUESTED' %}bg-indigo-700 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    <span>Release Requested</span>
+                    <span class="ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold {% if selected_tab == 'RELEASE_REQUESTED' %}bg-indigo-800 text-indigo-100{% else %}bg-slate-200 text-slate-700{% endif %}">
+                        {{ status_counts['RELEASE_REQUESTED'] }}
+                    </span>
+                </a>
+                <a href="/auditor?status=RELEASED"
+                   class="px-2.5 py-1 rounded-md font-medium transition inline-flex items-center {% if selected_tab == 'RELEASED' %}bg-indigo-700 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    <span>Released</span>
+                    <span class="ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold {% if selected_tab == 'RELEASED' %}bg-indigo-800 text-indigo-100{% else %}bg-slate-200 text-slate-700{% endif %}">
+                        {{ released_count }}
+                    </span>
+                </a>
+                <a href="/auditor?status=REJECTED"
+                   class="px-2.5 py-1 rounded-md font-medium transition inline-flex items-center {% if selected_tab == 'REJECTED' %}bg-indigo-700 text-white shadow-sm{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                    <span>Rejected</span>
+                    <span class="ml-1.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold {% if selected_tab == 'REJECTED' %}bg-indigo-800 text-indigo-100{% else %}bg-slate-200 text-slate-700{% endif %}">
+                        {{ status_counts['REJECTED'] }}
+                    </span>
+                </a>
+            </div>
         </div>
 
+        {% if items %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+                <thead class="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider">
+                    <tr>
+                        <th scope="col" class="px-6 py-3">FDR / Institution</th>
+                        <th scope="col" class="px-6 py-3">Status</th>
+                        <th scope="col" class="px-6 py-3">
+                            <a href="/auditor?sort=principal_amount&order={% if selected_sort == 'principal_amount' and selected_order == 'asc' %}desc{% else %}asc{% endif %}{% if selected_tab and selected_tab != 'ALL' %}&status={{ selected_tab }}{% endif %}" class="inline-flex items-center space-x-1 hover:text-slate-900">
+                                <span>Principal</span>
+                                <span class="text-slate-400">↕</span>
+                            </a>
+                        </th>
+                        <th scope="col" class="px-6 py-3">
+                            <a href="/auditor?sort=maturity_date&order={% if selected_sort == 'maturity_date' and selected_order == 'asc' %}desc{% else %}asc{% endif %}{% if selected_tab and selected_tab != 'ALL' %}&status={{ selected_tab }}{% endif %}" class="inline-flex items-center space-x-1 hover:text-slate-900">
+                                <span>Maturity</span>
+                                <span class="text-slate-400">↕</span>
+                            </a>
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 bg-white">
+                    {% for item in items %}
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="px-6 py-4">
+                            <div class="font-bold text-slate-900 font-mono">{{ item.instrument.fdr_number | default_dash }}</div>
+                            <div class="text-[11px] text-slate-500 mt-0.5">{{ item.institution_name | default_dash }}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold
+                                {% if item.instrument.status == 'ACTIVE' %}bg-emerald-50 text-emerald-800 border border-emerald-200
+                                {% elif item.instrument.status == 'DISCREPANCY_FLAGGED' %}bg-rose-50 text-rose-800 border border-rose-200
+                                {% elif item.instrument.status == 'RELEASED' %}bg-slate-100 text-slate-800 border border-slate-300
+                                {% elif item.instrument.status == 'SUBMITTED' %}bg-amber-50 text-amber-800 border border-amber-200
+                                {% elif item.instrument.status == 'UNDER_SCRUTINY' %}bg-sky-50 text-sky-800 border border-sky-200
+                                {% elif item.instrument.status == 'VERIFIED' %}bg-teal-50 text-teal-800 border border-teal-200
+                                {% elif item.instrument.status == 'EXPIRING' %}bg-orange-50 text-orange-800 border border-orange-200
+                                {% elif item.instrument.status == 'MATURED' %}bg-purple-50 text-purple-800 border border-purple-200
+                                {% elif item.instrument.status == 'RELEASE_REQUESTED' %}bg-yellow-50 text-yellow-800 border border-yellow-200
+                                {% elif item.instrument.status == 'REJECTED' %}bg-red-100 text-red-900 border border-red-300
+                                {% else %}bg-slate-100 text-slate-700 border border-slate-200{% endif %}">
+                                {{ item.instrument.status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 font-mono font-medium text-slate-800">
+                            {{ item.instrument.principal_amount | format_inr }}
+                        </td>
+                        <td class="px-6 py-4 font-mono text-slate-600">
+                            {{ item.instrument.maturity_date | format_date }}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <a href="/instruments/{{ item.instrument.id }}"
+                               class="inline-flex items-center px-3 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 font-semibold rounded text-xs transition">
+                                Inspect Case &rarr;
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
         <div class="text-center py-12 px-6">
             <svg class="mx-auto h-12 w-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
-            <h3 class="mt-3 text-base font-semibold text-slate-900">No items awaiting review.</h3>
+            <h3 class="mt-3 text-base font-semibold text-slate-900">No items found for this view.</h3>
             <p class="mt-1 text-sm text-slate-500 max-w-sm mx-auto">
-                All regulatory actions are recorded in the append-only cryptographic ledger. Use the verification tool above to inspect chain integrity.
+                No deposit records match the selected filter. Select another status tab or view all records.
             </p>
         </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

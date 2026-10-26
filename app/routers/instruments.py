@@ -69,10 +69,10 @@ def list_institution_instruments(
         "instruments": instruments,
         "status_counts": status_counts,
         "selected_status": status if status in ALL_STATES else None,
-        "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
+        "current_time": clock_service.display_time,
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
-        "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
+        "simulated_date_str": clock_service.display_simulated_date,
         "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
     }
     return templates.TemplateResponse("instruments/list.html", context)
@@ -93,11 +93,11 @@ def new_instrument_form(
         "institution": institution,
         "form_data": {},
         "errors": {},
-        "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
+        "current_time": clock_service.display_time,
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
         "max_upload_mb": settings.MAX_UPLOAD_MB,
-        "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
+        "simulated_date_str": clock_service.display_simulated_date,
         "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
     }
     return templates.TemplateResponse("instruments/new.html", context)
@@ -180,11 +180,11 @@ async def submit_instrument_action(
             "institution": institution,
             "form_data": form.raw_fields,
             "errors": form.errors,
-            "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
+            "current_time": clock_service.display_time,
             "is_simulated": clock_service.is_simulated,
             "demo_mode": settings.DEMO_MODE,
             "max_upload_mb": settings.MAX_UPLOAD_MB,
-            "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
+            "simulated_date_str": clock_service.display_simulated_date,
             "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
         }
         return templates.TemplateResponse("instruments/new.html", context, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -208,11 +208,11 @@ async def submit_instrument_action(
             "institution": institution,
             "form_data": form.raw_fields,
             "errors": form.errors,
-            "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
+            "current_time": clock_service.display_time,
             "is_simulated": clock_service.is_simulated,
             "demo_mode": settings.DEMO_MODE,
             "max_upload_mb": settings.MAX_UPLOAD_MB,
-            "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
+            "simulated_date_str": clock_service.display_simulated_date,
             "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
         }
         return templates.TemplateResponse("instruments/new.html", context, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -266,10 +266,10 @@ def view_institution_instrument_detail(
         "documents": documents,
         "timeline": timeline,
         "tickets": tickets,
-        "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
+        "current_time": clock_service.display_time,
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
-        "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
+        "simulated_date_str": clock_service.display_simulated_date,
         "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
     }
     return templates.TemplateResponse("instruments/detail.html", context)
@@ -491,10 +491,10 @@ def _render_staff_case_page(
         "mock_failure_modes": [m.value for m in MockFailureMode],
         "action_error": action_error,
         "action_success": action_success,
-        "current_time": clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST"),
+        "current_time": clock_service.display_time,
         "is_simulated": clock_service.is_simulated,
         "demo_mode": settings.DEMO_MODE,
-        "simulated_date_str": clock_service.today().strftime("%d %b %Y") if clock_service.is_simulated else None,
+        "simulated_date_str": clock_service.display_simulated_date,
         "csrf_token": request.cookies.get(settings.CSRF_COOKIE_NAME, ""),
     }
     return templates.TemplateResponse("instruments/staff_detail.html", context, status_code=status_code)

@@ -94,6 +94,24 @@ class ClockService:
         """Returns the authoritative application calendar date in DISPLAY_TIMEZONE."""
         return self.now_local().date()
 
+    def format_now_local(self, fmt: str = "%d %b %Y, %H:%M:%S IST") -> str:
+        """Returns the authoritative application time formatted in DISPLAY_TIMEZONE."""
+        return self.now_local().strftime(fmt)
+
+    def format_today(self, fmt: str = "%d %b %Y") -> str:
+        """Returns the authoritative application calendar date in DISPLAY_TIMEZONE."""
+        return self.today().strftime(fmt)
+
+    @property
+    def display_time(self) -> str:
+        """Standard display string for header current time: 'DD Mon YYYY, HH:MM:SS IST'."""
+        return self.format_now_local()
+
+    @property
+    def display_simulated_date(self) -> Optional[str]:
+        """Display string for simulated date banner: 'DD Mon YYYY' if simulated, else None."""
+        return self.format_today() if self.is_simulated else None
+
     # Backwards-compatible aliases
     def get_current_time(self) -> datetime:
         return self.now()

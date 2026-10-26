@@ -65,8 +65,8 @@ def time_machine_clock_control(
     db.commit()
 
     is_htmx = bool(request.headers.get("HX-Request"))
-    simulated_date_str = clock_service.today().strftime("%d %b %Y")
-    current_time_str = clock_service.now_local().strftime("%d %b %Y, %H:%M:%S IST")
+    simulated_date_str = clock_service.format_today()
+    current_time_str = clock_service.display_time
 
     if is_htmx:
         # Return updated toolbar and banner partials
